@@ -386,7 +386,6 @@ export default function CombosPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
               <TableHead>Nombre</TableHead>
               <TableHead>Productos</TableHead>
               <TableHead>Precio Base</TableHead>
@@ -399,8 +398,7 @@ export default function CombosPage() {
           <TableBody>
             {combos.map((combo) => (
               <TableRow key={combo.id}>
-                <TableCell className="font-medium">{combo.id}</TableCell>
-                <TableCell>{combo.name}</TableCell>
+                <TableCell className="font-medium">{combo.name}</TableCell>
                 <TableCell>
                     <div className="flex flex-col">
                         {combo.products?.map(p => (
@@ -465,5 +463,3 @@ export default function CombosPage() {
     </>
   );
 }
-
-    
