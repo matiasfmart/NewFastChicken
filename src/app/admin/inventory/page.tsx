@@ -46,8 +46,6 @@ export default function InventoryPage() {
     if (!firestore) return;
     const { id, ...data } = item;
     
-    // The `id` is on the item if it's an existing one being edited. 
-    // If it's a new item, the `item` object won't have an `id` property because we remove it before calling onSave.
     if (id) {
       await updateInventoryItem(firestore, id, data as Omit<InventoryItem, 'id'>);
     } else {

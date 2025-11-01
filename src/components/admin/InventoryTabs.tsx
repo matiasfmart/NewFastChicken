@@ -19,10 +19,10 @@ interface InventoryTabsProps {
   drinks: InventoryItem[];
   sides: InventoryItem[];
   onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void;
-  onSaveItem: (item: Partial<InventoryItem>) => Promise<void>;
+  onSaveItem: (item: Partial<InventoryItem>) => void;
 }
 
-const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: Partial<InventoryItem>) => Promise<void>, onCancel: () => void }) => {
+const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: Partial<InventoryItem>) => void, onCancel: () => void }) => {
 
     const getBaseItem = (): Partial<InventoryItem> => {
         let type: 'product' | 'drink' | 'side' = 'product';
@@ -47,9 +47,9 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
         setData(prev => ({...prev, category: value as 'chica' | 'grande'}));
     }
     
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        await onSave(data);
+        onSave(data);
         onCancel(); // Close form after saving
     }
 
@@ -93,7 +93,7 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                        <Button type="submit" form="item-form">Guardar</Button>
+                        <Button type="submit">Guardar</Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
@@ -101,7 +101,7 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
     )
 }
 
-const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSaveItem }: { items: InventoryItem[], categoryName: string, categoryKey: 'products' | 'drinks' | 'sides', onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void, onSaveItem: (item: Partial<InventoryItem>) => Promise<void> }) => {
+const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSaveItem }: { items: InventoryItem[], categoryName: string, categoryKey: 'products' | 'drinks' | 'sides', onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void, onSaveItem: (item: Partial<InventoryItem>) => void }) => {
 
     const [isFormOpen, setFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -116,8 +116,8 @@ const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSave
         setFormOpen(true);
     };
 
-    const handleSave = async (item: Partial<InventoryItem>) => {
-        await onSaveItem(item);
+    const handleSave = (item: Partial<InventoryItem>) => {
+        onSaveItem(item);
         setFormOpen(false);
         setEditingItem(null);
     }
