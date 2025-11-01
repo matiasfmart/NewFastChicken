@@ -8,7 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { combos as initialCombos, products, sides, drinks } from "@/lib/data";
 import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Badge } from "@/components/ui/badge";
 import type { Combo, ComboProduct } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
@@ -64,36 +63,35 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
 
   return (
     <Dialog open={true} onOpenChange={onCancel}>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
           <DialogDescription>
             Complete los detalles y seleccione los productos para el combo.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <ScrollArea className="max-h-[60vh] p-1">
-            <div className="space-y-4 pr-4">
-              <div className="space-y-2">
+        <ScrollArea className="overflow-auto">
+            <form id="combo-form" onSubmit={handleSubmit} className="p-1 pr-6 space-y-4">
+            <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
                 <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
-              </div>
-              <div className="space-y-2">
+            </div>
+            <div className="space-y-2">
                 <Label htmlFor="description">Descripción</Label>
                 <Textarea id="description" name="description" value={formData.description} onChange={handleChange} required />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+            </div>
+            <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Precio</Label>
-                  <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
+                <Label htmlFor="price">Precio</Label>
+                <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="discount">Descuento (%)</Label>
-                  <Input id="discount" name="discount" type="number" value={formData.discount || 0} onChange={handleChange} />
+                <Label htmlFor="discount">Descuento (%)</Label>
+                <Input id="discount" name="discount" type="number" value={formData.discount || 0} onChange={handleChange} />
                 </div>
-              </div>
+            </div>
 
-              <div className="space-y-4">
+            <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <Label>Productos del Combo</Label>
                     <Button type="button" size="sm" variant="outline" onClick={addProduct}><PlusCircle className="mr-2 h-4 w-4" />Añadir</Button>
@@ -101,7 +99,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                 <div className="space-y-2">
                     {formData.products?.map((p, index) => (
                         <div key={index} className="flex items-center gap-2">
-                             <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
+                            <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Seleccione un producto" />
                                 </SelectTrigger>
@@ -122,14 +120,13 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                         </div>
                     ))}
                 </div>
-              </div>
             </div>
-          </ScrollArea>
-          <DialogFooter className="mt-4">
+            </form>
+        </ScrollArea>
+        <DialogFooter>
             <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit">Guardar Combo</Button>
-          </DialogFooter>
-        </form>
+            <Button type="submit" form="combo-form">Guardar Combo</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
