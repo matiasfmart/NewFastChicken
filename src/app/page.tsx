@@ -1,18 +1,42 @@
-"use client";
 
 import * as React from "react";
-import { OrderProvider, useOrder } from "@/context/OrderContext";
+import { OrderProvider } from "@/context/OrderContext";
 import { CashierHeader } from "@/components/cashier/CashierHeader";
 import { MenuCatalog } from "@/components/cashier/MenuCatalog";
 import { OrderPanel } from "@/components/cashier/OrderPanel";
 import { CustomizationDialog } from "@/components/cashier/CustomizationDialog";
 import type { Combo, InventoryItem } from "@/lib/types";
+import { getCombos } from "@/services/comboService";
+import { getInventoryItems } from "@/services/inventoryService";
+import { initializeApp, getApp, getApps } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { firebaseConfig } from '@/lib/firebase-config';
 
-function CashierPage() {
+// Server-side data fetching
+async function getMenuData() {
+  let firebaseApp;
+  if (!getApps().length) {
+    firebaseApp = initializeApp(firebaseConfig);
+  } else {
+    firebaseApp = getApp();
+  }
+  const db = getFirestore(firebaseApp);
+  
+  try {
+    const combos = await getCombos(db);
+    const inventory = await getInventoryItems(db);
+    return { combos, inventory };
+  } catch (error) {
+    console.error("Failed to fetch menu data:", error);
+    // Return empty arrays on error to prevent crashing the page
+    return { combos: [], inventory: [] };
+  }
+}
+
+function CashierClientPage({ combos, inventory }: { combos: Combo[], inventory: InventoryItem[]}) {
   const [selectedItem, setSelectedItem] = React.useState<Combo | InventoryItem | null>(null);
   const [isDialogOpen, setDialogOpen] = React.useState(false);
-  const { clearOrder } = useOrder();
-
+  
   const handleSelectItem = (item: Combo | InventoryItem) => {
     setSelectedItem(item);
     setDialogOpen(true);
@@ -24,31 +48,34 @@ function CashierPage() {
   };
 
   return (
-    <div className="flex h-screen w-full flex-col bg-background">
-      <CashierHeader />
-      <main className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-          <MenuCatalog onSelectItem={handleSelectItem} />
-        </div>
-        <div className="w-full max-w-sm shrink-0 border-l border-border bg-card">
-          <OrderPanel />
-        </div>
-      </main>
-      {selectedItem && (
-        <CustomizationDialog
-          isOpen={isDialogOpen}
-          onClose={handleDialogClose}
-          item={selectedItem}
-        />
-      )}
-    </div>
+    <OrderProvider initialCombos={combos} initialInventory={inventory}>
+      <div className="flex h-screen w-full flex-col bg-background">
+        <CashierHeader />
+        <main className="flex flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+            <MenuCatalog onSelectItem={handleSelectItem} />
+          </div>
+          <div className="w-full max-w-sm shrink-0 border-l border-border bg-card">
+            <OrderPanel />
+          </div>
+        </main>
+        {selectedItem && (
+          <CustomizationDialog
+            isOpen={isDialogOpen}
+            onClose={handleDialogClose}
+            item={selectedItem}
+          />
+        )}
+      </div>
+    </OrderProvider>
   );
 }
 
-export default function Home() {
+
+export default async function Home() {
+    const { combos, inventory } = await getMenuData();
+    
     return (
-        <OrderProvider>
-            <CashierPage />
-        </OrderProvider>
-    )
+      <CashierClientPage combos={combos} inventory={inventory} />
+    );
 }

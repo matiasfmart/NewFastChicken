@@ -1,14 +1,13 @@
 
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { Combo, InventoryItem } from '@/lib/types';
 import { MenuItemCard } from './MenuItemCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
 import { useOrder } from '@/context/OrderContext';
-
 
 export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | InventoryItem) => void; }) {
   const { combos, inventory, isLoading } = useOrder();
@@ -22,7 +21,7 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
   }, [inventory]);
 
   const renderGrid = (items: (Combo | InventoryItem)[]) => {
-      if (isLoading) {
+      if (isLoading && items.length === 0) {
           return (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
