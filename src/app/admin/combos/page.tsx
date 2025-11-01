@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { combos as initialCombos, products, sides, drinks } from "@/lib/data";
-import { MoreHorizontal, PlusCircle, Trash2, Tag, Calendar as CalendarIcon } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Tag, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Combo, ComboProduct, DiscountRule, DiscountRuleType } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -30,7 +30,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     const [type, setType] = useState<DiscountRuleType>(rule?.type || 'weekday');
     const [value, setValue] = useState(rule?.value || '1');
     const [percentage, setPercentage] = useState(rule?.percentage || 10);
-    const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' ? new Date(rule.value!) : undefined);
+    const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' && rule.value ? new Date(rule.value) : undefined);
 
     const handleSave = () => {
         const finalValue = type === 'date' ? format(date!, 'yyyy-MM-dd') : value;
@@ -106,7 +106,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     )
 }
 
-function ComboForm({ combo, onSave, onCancel, onManageDiscounts }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void, onManageDiscounts: () => void }) {
+function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void }) {
   const [formData, setFormData] = useState<Partial<Combo>>(
     combo || {
       id: `C${Date.now()}`,
@@ -118,6 +118,9 @@ function ComboForm({ combo, onSave, onCancel, onManageDiscounts }: { combo: Part
       discounts: [],
     }
   );
+  
+  const [isRuleFormOpen, setRuleFormOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -158,175 +161,135 @@ function ComboForm({ combo, onSave, onCancel, onManageDiscounts }: { combo: Part
     return '';
   }
 
-  return (
-    <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-      <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
-          <DialogDescription>
-            Complete los detalles, seleccione los productos y gestione los descuentos para el combo.
-          </DialogDescription>
-        </DialogHeader>
-        <ScrollArea className="overflow-auto -mx-6 px-6">
-            <form id="combo-form" onSubmit={handleSubmit} className="p-1 pr-6 space-y-4">
-            <div className="space-y-2">
-                <Label htmlFor="name">Nombre</Label>
-                <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="description">Descripción</Label>
-                <Textarea id="description" name="description" value={formData.description} onChange={handleChange} required />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="price">Precio Base</Label>
-                <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
-            </div>
+  const openNewRuleForm = () => {
+      setEditingRule(null);
+      setRuleFormOpen(true);
+  }
 
-            <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <Label>Productos del Combo</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={addProduct}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
+  const openEditRuleForm = (rule: DiscountRule) => {
+      setEditingRule(rule);
+      setRuleFormOpen(true);
+  }
+
+  const handleSaveRule = (rule: DiscountRule) => {
+      setFormData(prev => {
+          const discounts = prev.discounts || [];
+          const existing = discounts.find(d => d.id === rule.id);
+          if (existing) {
+              return {...prev, discounts: discounts.map(d => d.id === rule.id ? rule : d)}
+          }
+          return {...prev, discounts: [...discounts, rule]};
+      })
+      setRuleFormOpen(false);
+      setEditingRule(null);
+  }
+
+  const removeRule = (ruleId: string) => {
+    setFormData(prev => ({...prev, discounts: prev.discounts?.filter(d => d.id !== ruleId)}));
+  }
+
+  return (
+    <>
+        <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
+        <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
+            <DialogHeader>
+            <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
+            <DialogDescription>
+                Complete los detalles, seleccione los productos y gestione los descuentos para el combo.
+            </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="overflow-auto -mx-6 px-6">
+                <form id="combo-form" onSubmit={handleSubmit} className="p-1 pr-6 space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="name">Nombre</Label>
+                    <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
                 </div>
                 <div className="space-y-2">
-                    {formData.products?.map((p, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                            <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Seleccione un producto" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {allInventory.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Input
-                                type="number"
-                                min="1"
-                                value={p.quantity}
-                                onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                                className="w-20"
-                            />
-                            <Button type="button" variant="ghost" size="icon" onClick={() => removeProduct(index)} className="text-destructive">
+                    <Label htmlFor="description">Descripción</Label>
+                    <Textarea id="description" name="description" value={formData.description} onChange={handleChange} required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="price">Precio Base</Label>
+                    <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
+                </div>
+
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <Label>Productos del Combo</Label>
+                        <Button type="button" size="sm" variant="outline" onClick={addProduct}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
+                    </div>
+                    <div className="space-y-2">
+                        {formData.products?.map((p, index) => (
+                            <div key={index} className="flex items-center gap-2">
+                                <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Seleccione un producto" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allInventory.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                                <Input
+                                    type="number"
+                                    min="1"
+                                    value={p.quantity}
+                                    onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
+                                    className="w-20"
+                                />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeProduct(index)} className="text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <Label>Reglas de Descuento</Label>
+                        <Button type="button" size="sm" variant="outline" onClick={openNewRuleForm}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
+                    </div>
+                     <div className="space-y-2">
+                        {formData.discounts?.map((rule) => (
+                            <div key={rule.id} className="flex items-center gap-2 p-2 border rounded-md">
+                            <div className="flex-1">
+                                <p className="font-semibold">{rule.percentage}% OFF</p>
+                                <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
+                            </div>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => openEditRuleForm(rule)}>
+                                <Pencil className="h-4 w-4" />
+                            </Button>
+                             <Button type="button" variant="ghost" size="icon" onClick={() => removeRule(rule.id)} className="text-destructive">
                                 <Trash2 className="h-4 w-4" />
                             </Button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-             <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                    <Label>Reglas de Descuento</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={onManageDiscounts}><Tag className="mr-2 h-4 w-4" />Gestionar Reglas</Button>
-                </div>
-                <div className="space-y-2">
-                    {formData.discounts?.map((rule) => (
-                        <div key={rule.id} className="flex items-center gap-2 p-2 border rounded-md">
-                           <div className="flex-1">
-                             <p className="font-semibold">{rule.percentage}% OFF</p>
-                             <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
-                           </div>
-                        </div>
-                    ))}
-                    {(!formData.discounts || formData.discounts.length === 0) && (
-                        <p className="text-sm text-muted-foreground">No hay reglas de descuento para este combo.</p>
-                    )}
-                </div>
-            </div>
-            </form>
-        </ScrollArea>
-        <DialogFooter>
-            <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-            <Button type="submit" form="combo-form">Guardar Combo</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DiscountManager({ initialRules, onSave, onCancel }: { initialRules: DiscountRule[], onSave: (rules: DiscountRule[]) => void, onCancel: () => void }) {
-    const [rules, setRules] = useState(initialRules);
-    const [isRuleFormOpen, setRuleFormOpen] = useState(false);
-    const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
-
-    const openNewRule = () => {
-        setEditingRule(null);
-        setRuleFormOpen(true);
-    }
-    
-    const openEditRule = (rule: DiscountRule) => {
-        setEditingRule(rule);
-        setRuleFormOpen(true);
-    }
-
-    const handleSaveRule = (rule: DiscountRule) => {
-        setRules(prev => {
-            const existing = prev.find(d => d.id === rule.id);
-            if (existing) {
-                return prev.map(d => d.id === rule.id ? rule : d);
-            }
-            return [...prev, rule];
-        });
-        setRuleFormOpen(false);
-        setEditingRule(null);
-    }
-
-    const removeRule = (ruleId: string) => {
-        setRules(prev => prev.filter(d => d.id !== ruleId));
-    }
-
-    const getDiscountDisplay = (rule: DiscountRule) => {
-        if (rule.type === 'weekday') {
-            return `Día: ${weekdays[Number(rule.value)]}`;
-        }
-        if (rule.type === 'date') {
-            return `Fecha: ${format(new Date(rule.value), "PPP")}`;
-        }
-        return '';
-    }
-
-    return (
-        <>
-            <Dialog open onOpenChange={(open) => !open && onCancel()}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Gestionar Reglas de Descuento</DialogTitle>
-                    </DialogHeader>
-                    <div className="py-4">
-                        <div className="flex justify-between items-center mb-4">
-                            <Label>Reglas Definidas</Label>
-                            <Button type="button" size="sm" variant="outline" onClick={openNewRule}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
-                        </div>
-                        <div className="space-y-2 max-h-64 overflow-y-auto">
-                            {rules.map((rule) => (
-                                <div key={rule.id} className="flex items-center gap-2 p-2 border rounded-md">
-                                    <div className="flex-1">
-                                        <p className="font-semibold">{rule.percentage}% OFF</p>
-                                        <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
-                                    </div>
-                                    <Button type="button" variant="ghost" size="sm" onClick={() => openEditRule(rule)}>Editar</Button>
-                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeRule(rule.id)} className="text-destructive">
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            ))}
-                            {rules.length === 0 && <p className="text-sm text-center text-muted-foreground py-4">No hay reglas definidas.</p>}
-                        </div>
+                            </div>
+                        ))}
+                        {(!formData.discounts || formData.discounts.length === 0) && (
+                            <p className="text-sm text-muted-foreground">No hay reglas de descuento para este combo.</p>
+                        )}
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-                        <Button onClick={() => onSave(rules)}>Guardar Cambios</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            {isRuleFormOpen && (
-                <DiscountRuleForm rule={editingRule} onSave={handleSaveRule} onCancel={() => setRuleFormOpen(false)} />
-            )}
-        </>
-    )
+                </div>
+                </form>
+            </ScrollArea>
+            <DialogFooter>
+                <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+                <Button type="submit" form="combo-form">Guardar Combo</Button>
+            </DialogFooter>
+        </DialogContent>
+        </Dialog>
+        {isRuleFormOpen && (
+            <DiscountRuleForm 
+                rule={editingRule} 
+                onSave={handleSaveRule}
+                onCancel={() => setRuleFormOpen(false)}
+            />
+        )}
+    </>
+  );
 }
 
 export default function CombosPage() {
   const [combos, setCombos] = useState<Combo[]>(initialCombos.filter(c => ['PO', 'BG', 'E'].includes(c.type)));
-  const [view, setView] = useState<'list' | 'edit_combo' | 'manage_discounts'>('list');
+  const [isFormOpen, setFormOpen] = useState(false);
   const [editingCombo, setEditingCombo] = useState<Partial<Combo> | null>(null);
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [deletingComboId, setDeletingComboId] = useState<string | null>(null);
@@ -341,12 +304,12 @@ export default function CombosPage() {
       products: [],
       discounts: [],
     });
-    setView('edit_combo');
+    setFormOpen(true);
   };
 
   const openEditForm = (combo: Combo) => {
     setEditingCombo(combo);
-    setView('edit_combo');
+    setFormOpen(true);
   };
   
   const handleSaveCombo = (comboData: Partial<Combo>) => {
@@ -360,7 +323,7 @@ export default function CombosPage() {
             return [...prev, comboData as Combo];
         }
     });
-    setView('list');
+    setFormOpen(false);
     setEditingCombo(null);
   }
 
@@ -377,25 +340,8 @@ export default function CombosPage() {
     }
   };
 
-  const handleManageDiscounts = () => {
-      if (!editingCombo) return;
-      setView('manage_discounts');
-  }
-
-  const handleSaveDiscounts = (rules: DiscountRule[]) => {
-      if (!editingCombo) return;
-      // We need to update the combo being edited, not just the local state of the manager
-      const updatedCombo = { ...editingCombo, discounts: rules };
-      setEditingCombo(updatedCombo);
-      
-      // Also update the main combos list if the combo already exists
-      setCombos(prevCombos => prevCombos.map(c => c.id === updatedCombo.id ? updatedCombo as Combo : c));
-
-      setView('edit_combo');
-  }
-
   const handleCloseForms = () => {
-    setView('list');
+    setFormOpen(false);
     setEditingCombo(null);
   }
   
@@ -477,20 +423,11 @@ export default function CombosPage() {
       </CardContent>
     </Card>
 
-    {view === 'edit_combo' && editingCombo && (
+    {isFormOpen && editingCombo && (
         <ComboForm
           combo={editingCombo}
           onSave={handleSaveCombo}
           onCancel={handleCloseForms}
-          onManageDiscounts={handleManageDiscounts}
-        />
-    )}
-
-    {view === 'manage_discounts' && editingCombo && (
-        <DiscountManager
-            initialRules={editingCombo.discounts || []}
-            onSave={handleSaveDiscounts}
-            onCancel={() => setView('edit_combo')}
         />
     )}
       
@@ -511,3 +448,5 @@ export default function CombosPage() {
     </>
   );
 }
+
+    
