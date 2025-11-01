@@ -1,11 +1,10 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { Combo, InventoryItem } from '@/lib/types';
 import { MenuItemCard } from './MenuItemCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '../ui/skeleton';
 import { useOrder } from '@/context/OrderContext';
@@ -22,22 +21,6 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
     }
   }, [inventory]);
 
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const filteredItems = useMemo(() => {
-    if (!searchTerm) return { combos, products, drinks, sides };
-    const lowercasedFilter = searchTerm.toLowerCase();
-    
-    const filter = <T extends {name: string}>(items: T[]) => items.filter(item => item.name.toLowerCase().includes(lowercasedFilter));
-
-    return {
-      combos: filter(combos),
-      products: filter(products),
-      drinks: filter(drinks),
-      sides: filter(sides),
-    };
-  }, [searchTerm, combos, products, drinks, sides]);
-  
   const renderGrid = (items: (Combo | InventoryItem)[]) => {
       if (isLoading) {
           return (
@@ -58,14 +41,6 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
 
   return (
     <div className="flex h-full flex-col gap-4">
-      <div className="flex items-center gap-4">
-        <Input
-          placeholder="Buscar producto o combo..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full"
-        />
-      </div>
       <Tabs defaultValue="combos" className="flex flex-1 flex-col overflow-hidden">
         <TabsList className="shrink-0">
           <TabsTrigger value="combos">Combos</TabsTrigger>
@@ -75,16 +50,16 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
         </TabsList>
         <ScrollArea className="flex-1">
             <TabsContent value="combos" className="p-1 pt-4">
-                {renderGrid(filteredItems.combos)}
+                {renderGrid(combos)}
             </TabsContent>
             <TabsContent value="products" className="p-1 pt-4">
-                {renderGrid(filteredItems.products)}
+                {renderGrid(products)}
             </TabsContent>
             <TabsContent value="sides" className="p-1 pt-4">
-                {renderGrid(filteredItems.sides)}
+                {renderGrid(sides)}
             </TabsContent>
             <TabsContent value="drinks" className="p-1 pt-4">
-                {renderGrid(filteredItems.drinks)}
+                {renderGrid(drinks)}
             </TabsContent>
         </ScrollArea>
       </Tabs>
