@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FastChickenLogo } from "@/components/icons/FastChickenLogo";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -37,8 +38,16 @@ export default function LoginPage() {
               <Label htmlFor="password">Contraseña</Label>
               <Input id="password" name="password" type="password" required defaultValue="admin"/>
             </div>
+
+            <Alert variant="default" className="!mt-6">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-muted-foreground">
+                    Usa <b>admin</b> / <b>admin</b> para la demostración.
+                </AlertDescription>
+            </Alert>
+
             {state?.error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="!mt-2">
                 <AlertDescription>{state.error}</AlertDescription>
               </Alert>
             )}
