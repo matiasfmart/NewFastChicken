@@ -23,17 +23,13 @@ interface InventoryTabsProps {
 }
 
 const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: Partial<InventoryItem>) => Promise<void>, onCancel: () => void }) => {
+    const [isSaving, setIsSaving] = useState(false);
 
     const getBaseItem = (): Partial<InventoryItem> => {
         let type: 'product' | 'drink' | 'side' = 'product';
         if (categoryKey === 'drinks') type = 'drink';
         if (categoryKey === 'sides') type = 'side';
-        return {
-            name: '',
-            price: 0,
-            stock: 0,
-            type: type,
-        }
+        return { name: '', price: 0, stock: 0, type: type }
     }
     
     const [data, setData] = useState<Partial<InventoryItem>>(item || getBaseItem());
@@ -49,25 +45,21 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        let dataToSave = { ...data };
-        if (!dataToSave.id?.startsWith('new-')) {
-          // It's a new item or we cleaned it before, but let's be sure
+        if (isSaving) return;
+        setIsSaving(true);
+        try {
+            await onSave(data);
+        } catch (error) {
+            console.error("Failed to save item", error);
+        } finally {
+            setIsSaving(false);
         }
-        if (!dataToSave.id) {
-          // Is a new item for sure
-        } else if (dataToSave.id.startsWith('new-')) {
-          delete dataToSave.id;
-        }
-
-        await onSave(dataToSave);
-        onCancel(); // Close form after saving
     }
 
     return (
         <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
             <DialogContent>
-                <form id="item-form" onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit}>
                     <DialogHeader>
                         <DialogTitle>{item?.id ? 'Editar' : 'Añadir'} Ítem</DialogTitle>
                         <DialogDescription>Completa la información del ítem de inventario.</DialogDescription>
@@ -103,8 +95,10 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
                         )}
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                        <Button type="submit">Guardar</Button>
+                        <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
+                        <Button type="submit" disabled={isSaving}>
+                            {isSaving ? 'Guardando...' : 'Guardar'}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>
