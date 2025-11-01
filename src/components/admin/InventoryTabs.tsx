@@ -19,10 +19,10 @@ interface InventoryTabsProps {
   drinks: InventoryItem[];
   sides: InventoryItem[];
   onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void;
-  onSaveItem: (item: Partial<InventoryItem>) => void;
+  onSaveItem: (item: Partial<InventoryItem>) => Promise<void>;
 }
 
-const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: Partial<InventoryItem>) => void, onCancel: () => void }) => {
+const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: Partial<InventoryItem>) => Promise<void>, onCancel: () => void }) => {
 
     const getBaseItem = (): Partial<InventoryItem> => {
         let type: 'product' | 'drink' | 'side' = 'product';
@@ -47,9 +47,20 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
         setData(prev => ({...prev, category: value as 'chica' | 'grande'}));
     }
     
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(data);
+        
+        let dataToSave = { ...data };
+        if (!dataToSave.id?.startsWith('new-')) {
+          // It's a new item or we cleaned it before, but let's be sure
+        }
+        if (!dataToSave.id) {
+          // Is a new item for sure
+        } else if (dataToSave.id.startsWith('new-')) {
+          delete dataToSave.id;
+        }
+
+        await onSave(dataToSave);
         onCancel(); // Close form after saving
     }
 
@@ -101,7 +112,7 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
     )
 }
 
-const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSaveItem }: { items: InventoryItem[], categoryName: string, categoryKey: 'products' | 'drinks' | 'sides', onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void, onSaveItem: (item: Partial<InventoryItem>) => void }) => {
+const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSaveItem }: { items: InventoryItem[], categoryName: string, categoryKey: 'products' | 'drinks' | 'sides', onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void, onSaveItem: (item: Partial<InventoryItem>) => Promise<void> }) => {
 
     const [isFormOpen, setFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -116,8 +127,8 @@ const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSave
         setFormOpen(true);
     };
 
-    const handleSave = (item: Partial<InventoryItem>) => {
-        onSaveItem(item);
+    const handleSave = async (item: Partial<InventoryItem>) => {
+        await onSaveItem(item);
         setFormOpen(false);
         setEditingItem(null);
     }

@@ -114,7 +114,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
 }
 
 
-function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void, inventoryItems: InventoryItem[] }) {
+function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => Promise<void>, onCancel: () => void, inventoryItems: InventoryItem[] }) {
   const [formData, setFormData] = useState<Partial<Combo> | null>(null);
   const [isRuleFormOpen, setRuleFormOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
@@ -172,10 +172,10 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
     setFormData(prev => prev ? ({...prev, products: formData.products?.filter((_, i) => i !== index)}) : null);
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if(formData) {
-        onSave(formData);
+        await onSave(formData);
     }
   };
   
@@ -204,15 +204,15 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
     <>
     <Dialog open={true} onOpenChange={(open) => { if (!open) onCancel() }}>
     <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
-        <>
+        <form id="combo-form" onSubmit={handleSubmit}>
             <DialogHeader>
                 <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
                 <DialogDescription>
                     Complete los detalles, seleccione los productos y gestione los descuentos para el combo.
                 </DialogDescription>
             </DialogHeader>
-            <ScrollArea className="overflow-auto -mx-6 px-6">
-                <form id="combo-form" onSubmit={handleSubmit} className="p-1 pr-6 space-y-4">
+            <ScrollArea className="overflow-auto -mx-6 px-6 h-[60vh]">
+                <div className="p-1 pr-6 space-y-4">
                 <div className="space-y-2">
                     <Label htmlFor="name">Nombre</Label>
                     <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} required />
@@ -281,13 +281,13 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
                         )}
                     </div>
                 </div>
-                </form>
+                </div>
             </ScrollArea>
             <DialogFooter>
                 <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
                 <Button type="submit" form="combo-form">Guardar Combo</Button>
             </DialogFooter>
-        </>
+        </form>
     </DialogContent>
     </Dialog>
     {isRuleFormOpen && editingRule && (
@@ -365,7 +365,7 @@ export default function CombosPage() {
     
     setFormOpen(false);
     setEditingCombo(null);
-    fetchData(); // Refetch data
+    await fetchData(); // Refetch data
   }
 
   const confirmDelete = (comboId: string) => {
