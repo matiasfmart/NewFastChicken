@@ -15,6 +15,23 @@ export default function InventoryPage() {
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; category: 'products' | 'drinks' | 'sides' } | null>(null);
 
+  const updateInventory = (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
+    const updater = (setter: React.Dispatch<React.SetStateAction<InventoryItem[]>>) => {
+        setter(prev => {
+            const index = prev.findIndex(i => i.id === item.id);
+            if (index > -1) {
+                const updated = [...prev];
+                updated[index] = item;
+                return updated;
+            }
+            return [...prev, item];
+        })
+    }
+    if (category === 'products') updater(setProducts);
+    if (category === 'drinks') updater(setDrinks);
+    if (category === 'sides') updater(setSides);
+  }
+
   const confirmDeleteItem = (id: string, category: 'products' | 'drinks' | 'sides') => {
     setItemToDelete({ id, category });
     setDeleteAlertOpen(true);
@@ -48,6 +65,7 @@ export default function InventoryPage() {
         drinks={drinks} 
         sides={sides}
         onDeleteItem={confirmDeleteItem}
+        onSaveItem={updateInventory}
       />
 
     <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
