@@ -1,3 +1,4 @@
+
 import type { InventoryItem, Combo } from './types';
 
 export const products: InventoryItem[] = [
@@ -36,9 +37,9 @@ export const combos: Combo[] = [
     discount: 10,
     products: [
       { productId: 'p1', quantity: 2 },
+      { productId: 'd1', quantity: 1 },
+      { productId: 's1', quantity: 1 },
     ],
-    drinkOptions: { allowed: 'any', quantity: 1 },
-    sideOptions: { allowed: 'any', quantity: 1 },
   },
   {
     id: 'PO2',
@@ -48,9 +49,9 @@ export const combos: Combo[] = [
     price: 4200,
     products: [
       { productId: 'p3', quantity: 6 },
+      { productId: 'd2', quantity: 1 },
+      { productId: 's1', quantity: 1 },
     ],
-    drinkOptions: { allowed: ['d1', 'd2', 'd3'], quantity: 1 },
-    sideOptions: { allowed: ['s1'], quantity: 1 },
   },
   {
     id: 'BG1',
@@ -60,16 +61,19 @@ export const combos: Combo[] = [
     price: 4500,
     products: [
       { productId: 'p5', quantity: 1 },
+      { productId: 'd1', quantity: 1 },
+      { productId: 's1', quantity: 1 },
     ],
-    drinkOptions: { allowed: 'any', quantity: 1 },
-    sideOptions: { allowed: 'any', quantity: 1 },
   },
+  // Individual items as combos are now deprecated by this change,
+  // but kept for compatibility. They won't be customizable in the cashier view.
   {
     id: 'D',
     type: 'E',
     name: 'Bebidas Chicas',
     description: 'Bebida individual chica (350ml)',
     price: 350,
+    products: [],
   },
   {
     id: 'DG',
@@ -77,26 +81,6 @@ export const combos: Combo[] = [
     name: 'Bebidas Grandes',
     description: 'Bebida individual grande (1L+)',
     price: 900,
+    products: [],
   }
 ];
-
-// "Virtual" combos for individual items
-sides.forEach(side => {
-  combos.push({
-    id: `ES-${side.id}`,
-    type: 'ES',
-    name: side.name,
-    description: `Porción de ${side.name}`,
-    price: side.price,
-  });
-});
-
-products.forEach(product => {
-  combos.push({
-    id: `EP-${product.id}`,
-    type: 'EP',
-    name: product.name,
-    description: `Porción de ${product.name}`,
-    price: product.price,
-  });
-});

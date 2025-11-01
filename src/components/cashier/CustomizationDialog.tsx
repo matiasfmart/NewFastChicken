@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
@@ -21,56 +22,70 @@ interface CustomizationDialogProps {
   item: Combo | InventoryItem;
 }
 
+// All individual items that can be part of a combo
+const allComboItems = [...allProducts, ...allSides, ...allDrinks];
+
 export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDialogProps) {
   const { addItemToOrder, getInventoryStock } = useOrder();
   const { toast } = useToast();
 
-  const isBaseItem = !('type' in item);
-  const combo = isBaseItem ? null : (item as Combo);
+  const isCombo = 'products' in item;
+  const combo = isCombo ? (item as Combo) : null;
   
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedDrinkId, setSelectedDrinkId] = useState<string | null>(null);
   const [selectedSideId, setSelectedSideId] = useState<string | null>(null);
   const [withIce, setWithIce] = useState(true);
   const [isSpicy, setIsSpicy] = useState(false);
 
-  const availableDrinks = useMemo(() => {
-    if (!combo || !combo.drinkOptions) return [];
-    if(combo.type === 'E') {
-        const category = combo.id === 'D' ? 'chica' : 'grande';
-        return allDrinks.filter(d => d.category === category);
+  // This logic is now simplified. If a combo allows customization, it will be based on what's defined in the combo.
+  // For old combos ('any'), we provide a fallback. For new ones, it should be specific.
+  const { availableProducts, availableDrinks, availableSides } = useMemo(() => {
+    if (!combo) return { availableProducts: [], availableDrinks: [], availableSides: [] };
+    
+    const comboProductItems = combo.products.map(p => allComboItems.find(i => i.id === p.productId)).filter(Boolean) as InventoryItem[];
+    
+    return {
+      availableProducts: comboProductItems.filter(i => i.type === 'product'),
+      availableDrinks: comboProductItems.filter(i => i.type === 'drink'),
+      availableSides: comboProductItems.filter(i => i.type === 'side'),
     }
-    if (combo.drinkOptions.allowed === 'any') return allDrinks.filter(d => d.category === 'chica');
-    return allDrinks.filter(d => combo.drinkOptions!.allowed.includes(d.id));
   }, [combo]);
 
-  const availableSides = useMemo(() => {
-    if (!combo || !combo.sideOptions) return [];
-    if (combo.sideOptions.allowed === 'any') return allSides;
-    return allSides.filter(s => combo.sideOptions!.allowed.includes(s.id));
-  }, [combo]);
+  // Special handling for old generic drink/side combos
+  const genericDrinkType = combo?.type === 'E' ? (combo.id === 'D' ? 'chica' : 'grande') : null;
+  const genericDrinks = useMemo(() => genericDrinkType ? allDrinks.filter(d => d.category === genericDrinkType) : [], [genericDrinkType]);
+
 
   const handleSubmit = () => {
     if(!combo) { // Should not happen
         onClose();
         return;
     }
-    
+
+    const isGenericDrinkCombo = combo.type === 'E';
+
     // Validations
-    if(combo.drinkOptions && !selectedDrinkId) {
+    if(availableDrinks.length > 0 && !selectedDrinkId) {
         toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione una bebida.' });
         return;
     }
-    if(combo.sideOptions && !selectedSideId) {
+     if(isGenericDrinkCombo && !selectedDrinkId) {
+        toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione una bebida.' });
+        return;
+    }
+    if(availableSides.length > 0 && !selectedSideId) {
         toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione una guarnición.' });
         return;
     }
     
+    const selectedProduct = allProducts.find(p => p.id === selectedProductId);
     const selectedDrink = allDrinks.find(d => d.id === selectedDrinkId);
     const selectedSide = allSides.find(s => s.id === selectedSideId);
-    const selectedProduct = combo.type === 'EP' ? allProducts.find(p => combo.id.includes(p.id)) : undefined;
 
     let price = combo.price;
-    if(combo.type === 'E' && selectedDrink){
+    // If it's a generic drink combo, the price is the one for the selected drink
+    if(isGenericDrinkCombo && selectedDrink){
         price = selectedDrink.price;
     }
     
@@ -81,12 +96,12 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
         drink: selectedDrink,
         side: selectedSide,
         product: selectedProduct,
-        withIce: combo.type === 'PO' || combo.type === 'BG' || combo.type === 'E' ? withIce : undefined,
-        isSpicy: combo.type === 'PO' ? isSpicy : undefined
+        withIce: withIce,
+        isSpicy: isSpicy,
     }
 
     const orderItem: OrderItem = {
-      id: `${combo.id}-${selectedDrinkId}-${selectedSideId}-${isSpicy}-${withIce}`,
+      id: `${combo.id}-${selectedProductId}-${selectedDrinkId}-${selectedSideId}-${isSpicy}-${withIce}`,
       combo: combo,
       quantity: 1,
       unitPrice: price,
@@ -108,8 +123,9 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
   const overallStockWarning = useMemo(() => {
       if(!combo || !combo.products) return null;
       const lowStockItems = combo.products
-        .filter(p => getInventoryStock(p.productId) < p.quantity)
-        .map(p => allProducts.find(prod => prod.id === p.productId)?.name)
+        .map(p => ({ item: allComboItems.find(i => i.id === p.productId), requiredQty: p.quantity }))
+        .filter(data => data.item && getInventoryStock(data.item.id) < data.requiredQty)
+        .map(data => data.item!.name)
         .filter(Boolean);
       
       if(lowStockItems.length > 0) {
@@ -119,13 +135,13 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
   }, [combo, getInventoryStock])
 
   const renderOptions = (title: string, items: InventoryItem[], selectedId: string | null, onSelect: (id: string) => void) => (
-    <div className="space-y-2">
+    items.length > 0 && <div className="space-y-2">
       <h3 className="font-semibold">{title}</h3>
       <RadioGroup value={selectedId || undefined} onValueChange={onSelect}>
           {items.map(i => (
             <div key={i.id} className="flex items-center space-x-2">
-              <RadioGroupItem value={i.id} id={i.id} />
-              <Label htmlFor={i.id} className="flex-1">{i.name} {i.price !== combo?.price && combo?.type === 'E' && `($${i.price})`}</Label>
+              <RadioGroupItem value={i.id} id={i.id} disabled={getInventoryStock(i.id) <= 0} />
+              <Label htmlFor={i.id} className="flex-1 has-[:disabled]:text-muted-foreground">{i.name} {i.price !== combo?.price && combo?.type === 'E' && `($${i.price})`}</Label>
               {getStockStatus(i.id)}
             </div>
           ))}
@@ -148,15 +164,18 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
         </Alert>}
         <ScrollArea className="max-h-[60vh] p-1">
             <div className="space-y-6 pr-4">
-                {availableDrinks.length > 0 && renderOptions('Bebida', availableDrinks, selectedDrinkId, setSelectedDrinkId)}
-                {availableSides.length > 0 && renderOptions('Guarnición', availableSides, selectedSideId, setSelectedSideId)}
-                {(combo.type === 'PO' || combo.type === 'BG' || combo.type === 'E') && (
+                {renderOptions('Producto Principal', availableProducts, selectedProductId, setSelectedProductId)}
+                {renderOptions('Guarnición', availableSides, selectedSideId, setSelectedSideId)}
+                {renderOptions('Bebida', availableDrinks, selectedDrinkId, setSelectedDrinkId)}
+                {renderOptions('Bebida', genericDrinks, selectedDrinkId, setSelectedDrinkId)}
+                
+                { (availableDrinks.length > 0 || genericDrinks.length > 0) && (
                     <div className="flex items-center justify-between">
                         <Label htmlFor="with-ice" className="font-semibold">¿Con hielo?</Label>
                         <Switch id="with-ice" checked={withIce} onCheckedChange={setWithIce} />
                     </div>
                 )}
-                {combo.type === 'PO' && (
+                { availableProducts.length > 0 && (
                     <div className="flex items-center justify-between">
                         <Label htmlFor="is-spicy" className="flex items-center gap-2 font-semibold text-destructive">
                             <Flame className="h-4 w-4"/> ¿Con picante?
@@ -168,7 +187,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
         </ScrollArea>
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSubmit}>Agregar al Pedido</Button>
+          <Button onClick={handleSubmit} disabled={!!overallStockWarning}>Agregar al Pedido</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

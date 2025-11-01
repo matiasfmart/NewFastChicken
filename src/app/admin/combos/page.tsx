@@ -6,18 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { combos as initialCombos, products, sides, drinks } from "@/lib/data";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import type { Combo } from '@/lib/types';
+import type { Combo, ComboProduct } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
+const allInventory = [...products, ...sides, ...drinks];
 
 function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void }) {
   const [formData, setFormData] = useState<Partial<Combo>>(
@@ -27,10 +28,8 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
       description: '',
       price: 0,
       discount: 0,
-      type: 'PO',
+      type: 'BG', // Default type, can be changed
       products: [],
-      drinkOptions: { allowed: 'any', quantity: 1 },
-      sideOptions: { allowed: 'any', quantity: 1 },
     }
   );
 
@@ -39,9 +38,24 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
     setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseFloat(value) || 0 : value }));
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleProductChange = (index: number, field: 'productId' | 'quantity', value: string) => {
+    const updatedProducts = [...(formData.products || [])];
+    if (field === 'quantity') {
+      updatedProducts[index] = { ...updatedProducts[index], quantity: parseInt(value, 10) || 1 };
+    } else {
+       updatedProducts[index] = { ...updatedProducts[index], productId: value };
+    }
+    setFormData(prev => ({ ...prev, products: updatedProducts }));
   };
+  
+  const addProduct = () => {
+    const newProduct: ComboProduct = { productId: allInventory[0].id, quantity: 1 };
+    setFormData(prev => ({ ...prev, products: [...(prev.products || []), newProduct] }));
+  };
+
+  const removeProduct = (index: number) => {
+    setFormData(prev => ({...prev, products: formData.products?.filter((_, i) => i !== index)}));
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +68,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
         <DialogHeader>
           <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
           <DialogDescription>
-            Complete los detalles del combo.
+            Complete los detalles y seleccione los productos para el combo.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -78,20 +92,36 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                   <Input id="discount" name="discount" type="number" value={formData.discount || 0} onChange={handleChange} />
                 </div>
               </div>
-               <div className="space-y-2">
-                <Label htmlFor="type">Tipo</Label>
-                <Select name="type" value={formData.type} onValueChange={(value) => handleSelectChange('type', value)}>
-                    <SelectTrigger>
-                        <SelectValue placeholder="Seleccione un tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="PO">Pollo</SelectItem>
-                        <SelectItem value="BG">Hamburguesa</SelectItem>
-                        <SelectItem value="E">Bebida Individual</SelectItem>
-                        <SelectItem value="ES">Guarnición Individual</SelectItem>
-                        <SelectItem value="EP">Producto Individual</SelectItem>
-                    </SelectContent>
-                </Select>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <Label>Productos del Combo</Label>
+                    <Button type="button" size="sm" variant="outline" onClick={addProduct}><PlusCircle className="mr-2 h-4 w-4" />Añadir</Button>
+                </div>
+                <div className="space-y-2">
+                    {formData.products?.map((p, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                             <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione un producto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allInventory.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                type="number"
+                                min="1"
+                                value={p.quantity}
+                                onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
+                                className="w-20"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeProduct(index)} className="text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    ))}
+                </div>
               </div>
             </div>
           </ScrollArea>
@@ -169,7 +199,7 @@ export default function CombosPage() {
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>Nombre</TableHead>
-              <TableHead>Tipo</TableHead>
+              <TableHead>Productos</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Descuento</TableHead>
               <TableHead>
@@ -182,7 +212,15 @@ export default function CombosPage() {
               <TableRow key={combo.id}>
                 <TableCell className="font-medium">{combo.id}</TableCell>
                 <TableCell>{combo.name}</TableCell>
-                <TableCell><Badge variant="outline">{combo.type}</Badge></TableCell>
+                <TableCell>
+                    <div className="flex flex-col">
+                        {combo.products?.map(p => (
+                            <span key={p.productId} className="text-xs text-muted-foreground">
+                                {p.quantity}x {allInventory.find(i => i.id === p.productId)?.name || p.productId}
+                            </span>
+                        ))}
+                    </div>
+                </TableCell>
                 <TableCell>${combo.price.toLocaleString('es-AR')}</TableCell>
                 <TableCell>{combo.discount ? `${combo.discount}%` : '-'}</TableCell>
                 <TableCell>
@@ -232,5 +270,3 @@ export default function CombosPage() {
     </>
   );
 }
-
-    

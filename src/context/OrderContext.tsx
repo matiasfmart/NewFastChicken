@@ -1,8 +1,10 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 import type { OrderItem, Combo, InventoryItem, DeliveryType, Order } from "@/lib/types";
 import { inventory as initialInventory } from "@/lib/data";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrderContextType {
   orderItems: OrderItem[];
@@ -22,6 +24,7 @@ interface OrderContextType {
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { toast } = useToast();
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('local');
   const [inventory, setInventory] = useState<Record<string, number>>(
@@ -45,7 +48,10 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateItemQuantity = (itemId: string, quantity: number) => {
-    if (quantity < 1) return;
+    if (quantity < 1) {
+        removeItemFromOrder(itemId);
+        return;
+    };
     setOrderItems((prevItems) =>
       prevItems.map((item) => (item.id === itemId ? { ...item, quantity } : item))
     );
@@ -71,33 +77,32 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (orderItems.length === 0) return null;
 
     const newInventory = { ...inventory };
-    let canProceed = true;
+    
+    // Check stock before decrementing
+    for (const orderItem of orderItems) {
+        const { combo, quantity, customizations } = orderItem;
 
-    for (const item of orderItems) {
-      const { combo, quantity, customizations } = item;
-      
-      const itemsToDecrement: {id: string, qty: number}[] = [];
-
-      if(combo.products) {
-          combo.products.forEach(p => itemsToDecrement.push({id: p.productId, qty: p.quantity}));
-      }
-      if (customizations.drink) {
-          itemsToDecrement.push({id: customizations.drink.id, qty: combo.drinkOptions?.quantity ?? 1});
-      }
-      if (customizations.side) {
-        itemsToDecrement.push({id: customizations.side.id, qty: combo.sideOptions?.quantity ?? 1});
-      }
-      if(customizations.product) {
-        itemsToDecrement.push({id: customizations.product.id, qty: 1});
-      }
-
-      for(const toDecrement of itemsToDecrement) {
-        if(newInventory[toDecrement.id] < toDecrement.qty * quantity){
-            // Not blocking as per spec, just flagging. Realistically this should be handled.
-            console.warn(`Stock insufficient for ${toDecrement.id}, but proceeding.`);
+        // Decrement items from the combo itself
+        if (combo.products) {
+            for (const productInCombo of combo.products) {
+                 if (newInventory[productInCombo.productId] < productInCombo.quantity * quantity) {
+                    const itemInfo = initialInventory.find(i => i.id === productInCombo.productId);
+                    toast({ variant: "destructive", title: "Stock Insuficiente", description: `No hay suficiente ${itemInfo?.name || 'producto'}.`});
+                    return null;
+                }
+            }
         }
-        newInventory[toDecrement.id] = Math.max(0, newInventory[toDecrement.id] - (toDecrement.qty * quantity));
-      }
+    }
+
+
+    // If all checks pass, decrement stock
+    for (const orderItem of orderItems) {
+        const { combo, quantity } = orderItem;
+         if (combo.products) {
+            for (const productInCombo of combo.products) {
+                newInventory[productInCombo.productId] -= productInCombo.quantity * quantity;
+            }
+        }
     }
 
     const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);

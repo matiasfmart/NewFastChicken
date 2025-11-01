@@ -17,20 +17,12 @@ export interface ComboProduct {
 
 export interface Combo {
   id: string;
-  type: 'PO' | 'BG' | 'E' | 'ES' | 'EP';
+  type: 'PO' | 'BG' | 'E' | 'ES' | 'EP'; // Main category, can be deprecated if we use items
   name: string;
   description: string;
   price: number;
   discount?: number;
-  products?: ComboProduct[];
-  drinkOptions?: {
-    allowed: string[] | 'any';
-    quantity: number;
-  };
-  sideOptions?: {
-    allowed: string[] | 'any';
-    quantity: number;
-  };
+  products: ComboProduct[]; // List of inventory items (products, sides, drinks)
 }
 
 export interface OrderItem {
