@@ -117,7 +117,7 @@ export default function AdminDashboardPage() {
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
-                            <Tooltip formatter={(value, name) => [`${((value / totalSales) * 100).toFixed(1)}%`, name]}/>
+                            <Tooltip formatter={(value, name) => [`${((value as number / totalSales) * 100).toFixed(1)}%`, name]}/>
                             <Legend />
                         </PieChart>
                     </ResponsiveContainer>
