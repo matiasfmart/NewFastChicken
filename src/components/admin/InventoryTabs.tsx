@@ -23,7 +23,6 @@ interface InventoryTabsProps {
 }
 
 const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: InventoryItem) => void, onCancel: () => void }) => {
-    const [formData, setFormData] = useState<Partial<InventoryItem>>(item || {});
 
     const getBaseItem = (): Partial<InventoryItem> => {
         let type: 'product' | 'drink' | 'side' = 'product';
@@ -51,17 +50,21 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
     
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(data as InventoryItem);
+        const dataToSave = { ...data };
+        if (dataToSave.id?.startsWith('new-')) {
+            delete dataToSave.id;
+        }
+        onSave(dataToSave as InventoryItem);
     }
 
     return (
         <Dialog open={true} onOpenChange={onCancel}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{item ? 'Editar' : 'Añadir'} Ítem</DialogTitle>
+                    <DialogTitle>{item?.id && !item.id.startsWith('new-') ? 'Editar' : 'Añadir'} Ítem</DialogTitle>
                     <DialogDescription>Completa la información del ítem de inventario.</DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmit}>
+                <form id="item-form" onSubmit={handleSubmit}>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Nombre</Label>
@@ -92,11 +95,11 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
                             </div>
                         )}
                     </div>
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                        <Button type="submit">Guardar</Button>
-                    </DialogFooter>
                 </form>
+                 <DialogFooter>
+                    <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+                    <Button type="submit" form="item-form">Guardar</Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     )

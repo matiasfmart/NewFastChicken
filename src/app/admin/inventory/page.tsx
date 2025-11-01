@@ -36,17 +36,22 @@ export default function InventoryPage() {
   };
 
   useEffect(() => {
-    fetchData();
+    if (firestore) {
+      fetchData();
+    }
   }, [firestore]);
 
 
   const handleSaveInventory = async (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
     if (!firestore) return;
     const { id, ...data } = item;
-    if (id.startsWith('new-')) {
-      await addInventoryItem(firestore, data as Omit<InventoryItem, 'id'>);
-    } else {
+    
+    // The `id` is on the item if it's an existing one being edited. 
+    // If it's a new item, the `item` object won't have an `id` property because we remove it before calling onSave.
+    if (id) {
       await updateInventoryItem(firestore, id, data);
+    } else {
+      await addInventoryItem(firestore, data as Omit<InventoryItem, 'id'>);
     }
     fetchData(); // Refetch data after saving
   }
