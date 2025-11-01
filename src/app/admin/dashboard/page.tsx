@@ -1,7 +1,35 @@
+'use client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Activity, CreditCard, DollarSign, Users } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { combos as allCombos } from "@/lib/data";
+
+// Sample sales data for demonstration
+const comboSalesData = allCombos.map(combo => ({
+  name: combo.name,
+  type: combo.type === 'PO' ? 'Pollo' : (combo.type === 'BG' ? 'Hamburguesa' : (['E', 'ES', 'EP'].includes(combo.type) ? 'Individual' : 'Otro')),
+  sales: Math.floor(Math.random() * 200) + 50,
+  revenue: combo.price * (Math.floor(Math.random() * 200) + 50)
+}));
+
+const totalSales = comboSalesData.reduce((sum, item) => sum + item.sales, 0);
+
+const salesByType = comboSalesData.reduce((acc, item) => {
+    acc[item.type] = (acc[item.type] || 0) + item.sales;
+    return acc;
+}, {} as Record<string, number>);
+
+const chartData = Object.keys(salesByType).map(type => ({
+  name: type,
+  value: salesByType[type]
+}));
+
+const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
 export default function AdminDashboardPage() {
+  const topSeller = [...comboSalesData].sort((a,b) => b.sales - a.sales)[0];
+
   return (
     <div className="flex flex-col gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Bienvenido, Administrador</h1>
@@ -12,7 +40,7 @@ export default function AdminDashboardPage() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$45,231.89</div>
+              <div className="text-2xl font-bold">${comboSalesData.reduce((sum, item) => sum + item.revenue, 0).toLocaleString('es-AR')}</div>
               <p className="text-xs text-muted-foreground">+20.1% desde ayer</p>
             </CardContent>
           </Card>
@@ -22,18 +50,18 @@ export default function AdminDashboardPage() {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+2350</div>
+              <div className="text-2xl font-bold">+{totalSales}</div>
               <p className="text-xs text-muted-foreground">+180.1% desde el mes pasado</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Items más vendidos</CardTitle>
+              <CardTitle className="text-sm font-medium">Item más vendido</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Combo Pollo Clásico</div>
-              <p className="text-xs text-muted-foreground">542 vendidos hoy</p>
+              <div className="text-2xl font-bold">{topSeller.name}</div>
+              <p className="text-xs text-muted-foreground">{topSeller.sales} vendidos hoy</p>
             </CardContent>
           </Card>
           <Card>
@@ -47,20 +75,55 @@ export default function AdminDashboardPage() {
             </CardContent>
           </Card>
         </div>
-        <Card>
-            <CardHeader>
-                <CardTitle>Guía Rápida</CardTitle>
-                <CardDescription>Utilice la barra de navegación de la izquierda para gestionar el sistema.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <ul className="list-disc pl-5 text-muted-foreground">
-                    <li><b>Dashboard:</b> Esta vista principal.</li>
-                    <li><b>Inventario:</b> Vea y actualice el stock y precios de productos, bebidas y guarniciones.</li>
-                    <li><b>Combos:</b> Cree y edite los combos del menú, configure sus productos y descuentos.</li>
-                    <li><b>Previsiones:</b> Use la IA para obtener sugerencias de reposición de stock.</li>
-                </ul>
-            </CardContent>
-        </Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+            <Card className="lg:col-span-4">
+                <CardHeader>
+                    <CardTitle>Ventas por Combo</CardTitle>
+                    <CardDescription>Resumen de ventas para cada combo.</CardDescription>
+                </CardHeader>
+                <CardContent className="max-h-96 overflow-y-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Combo</TableHead>
+                                <TableHead className="text-right">Ventas</TableHead>
+                                <TableHead className="text-right">Ingresos</TableHead>
+                                <TableHead className="text-right">% Total</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {comboSalesData.map(item => (
+                                <TableRow key={item.name}>
+                                    <TableCell>{item.name}</TableCell>
+                                    <TableCell className="text-right">{item.sales}</TableCell>
+                                    <TableCell className="text-right">${item.revenue.toLocaleString('es-AR')}</TableCell>
+                                    <TableCell className="text-right">{((item.sales / totalSales) * 100).toFixed(1)}%</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+            <Card className="lg:col-span-3">
+                 <CardHeader>
+                    <CardTitle>Ventas por Categoría</CardTitle>
+                    <CardDescription>Distribución de ventas por tipo de producto.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <PieChart>
+                            <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                                {chartData.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                ))}
+                            </Pie>
+                            <Tooltip formatter={(value, name) => [`${((value / totalSales) * 100).toFixed(1)}%`, name]}/>
+                            <Legend />
+                        </PieChart>
+                    </ResponsiveContainer>
+                </CardContent>
+            </Card>
+        </div>
     </div>
   );
 }

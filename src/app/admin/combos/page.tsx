@@ -14,9 +14,9 @@ export default function CombosPage() {
         <CardDescription>Cree, edite y elimine los combos del menú.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 text-right">
+        {/* <div className="mb-4 text-right">
             <Button>Crear Nuevo Combo</Button>
-        </div>
+        </div> */}
         <Table>
           <TableHeader>
             <TableRow>
@@ -25,9 +25,9 @@ export default function CombosPage() {
               <TableHead>Tipo</TableHead>
               <TableHead>Precio</TableHead>
               <TableHead>Descuento</TableHead>
-              <TableHead>
+              {/* <TableHead>
                 <span className="sr-only">Acciones</span>
-              </TableHead>
+              </TableHead> */}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -38,10 +38,10 @@ export default function CombosPage() {
                 <TableCell><Badge variant="outline">{combo.type}</Badge></TableCell>
                 <TableCell>${combo.price.toLocaleString('es-AR')}</TableCell>
                 <TableCell>{combo.discount ? `${combo.discount}%` : '-'}</TableCell>
-                <TableCell>
+                {/* <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
+                      <Button aria-haspopup="true" size="icon" variant="ghost" disabled>
                         <MoreHorizontal className="h-4 w-4" />
                         <span className="sr-only">Toggle menu</span>
                       </Button>
@@ -52,7 +52,7 @@ export default function CombosPage() {
                       <DropdownMenuItem className="text-destructive">Eliminar</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                </TableCell>
+                </TableCell> */}
               </TableRow>
             ))}
           </TableBody>

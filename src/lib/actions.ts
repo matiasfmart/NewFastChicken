@@ -2,7 +2,6 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { forecastStock as runForecastStock, type ForecastStockInput, type ForecastStockOutput } from "@/ai/flows/stock-forecasting";
 
 export async function login(previousState: any, formData: FormData) {
   const user = formData.get("user");
@@ -20,8 +19,4 @@ export async function login(previousState: any, formData: FormData) {
 export async function logout() {
   cookies().delete("session");
   redirect("/admin/login");
-}
-
-export async function forecastStock(input: ForecastStockInput): Promise<ForecastStockOutput> {
-    return runForecastStock(input);
 }
