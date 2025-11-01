@@ -56,11 +56,11 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
     return (
         <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>{item?.id ? 'Editar' : 'Añadir'} Ítem</DialogTitle>
-                    <DialogDescription>Completa la información del ítem de inventario.</DialogDescription>
-                </DialogHeader>
                 <form id="item-form" onSubmit={handleSubmit}>
+                    <DialogHeader>
+                        <DialogTitle>{item?.id ? 'Editar' : 'Añadir'} Ítem</DialogTitle>
+                        <DialogDescription>Completa la información del ítem de inventario.</DialogDescription>
+                    </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label htmlFor="name">Nombre</Label>
@@ -91,11 +91,11 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
                             </div>
                         )}
                     </div>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+                        <Button type="submit" form="item-form">Guardar</Button>
+                    </DialogFooter>
                 </form>
-                 <DialogFooter>
-                    <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                    <Button type="submit" form="item-form">Guardar</Button>
-                </DialogFooter>
             </DialogContent>
         </Dialog>
     )
