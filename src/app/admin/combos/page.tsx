@@ -106,7 +106,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     )
 }
 
-function ComboForm({ combo, onSave, onCancel, onManageDiscounts }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void, onManageDiscounts: (rules: DiscountRule[]) => void }) {
+function ComboForm({ combo, onSave, onCancel, onManageDiscounts }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void, onManageDiscounts: () => void }) {
   const [formData, setFormData] = useState<Partial<Combo>>(
     combo || {
       id: `C${Date.now()}`,
@@ -159,7 +159,7 @@ function ComboForm({ combo, onSave, onCancel, onManageDiscounts }: { combo: Part
   }
 
   return (
-    <Dialog open={true} onOpenChange={onCancel}>
+    <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
@@ -215,7 +215,7 @@ function ComboForm({ combo, onSave, onCancel, onManageDiscounts }: { combo: Part
              <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <Label>Reglas de Descuento</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={() => onManageDiscounts(formData.discounts || [])}><Tag className="mr-2 h-4 w-4" />Gestionar Reglas</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={onManageDiscounts}><Tag className="mr-2 h-4 w-4" />Gestionar Reglas</Button>
                 </div>
                 <div className="space-y-2">
                     {formData.discounts?.map((rule) => (
@@ -285,7 +285,7 @@ function DiscountManager({ initialRules, onSave, onCancel }: { initialRules: Dis
 
     return (
         <>
-            <Dialog open onOpenChange={onCancel}>
+            <Dialog open onOpenChange={(open) => !open && onCancel()}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Gestionar Reglas de Descuento</DialogTitle>
@@ -377,16 +377,26 @@ export default function CombosPage() {
     }
   };
 
-  const handleManageDiscounts = (rules: DiscountRule[]) => {
+  const handleManageDiscounts = () => {
       if (!editingCombo) return;
-      setEditingCombo(prev => ({...prev, discounts: rules }));
       setView('manage_discounts');
   }
 
   const handleSaveDiscounts = (rules: DiscountRule[]) => {
       if (!editingCombo) return;
-      setEditingCombo(prev => ({...prev, discounts: rules}));
+      // We need to update the combo being edited, not just the local state of the manager
+      const updatedCombo = { ...editingCombo, discounts: rules };
+      setEditingCombo(updatedCombo);
+      
+      // Also update the main combos list if the combo already exists
+      setCombos(prevCombos => prevCombos.map(c => c.id === updatedCombo.id ? updatedCombo as Combo : c));
+
       setView('edit_combo');
+  }
+
+  const handleCloseForms = () => {
+    setView('list');
+    setEditingCombo(null);
   }
   
   const getDiscountDisplay = (rule: DiscountRule) => {
@@ -467,12 +477,12 @@ export default function CombosPage() {
       </CardContent>
     </Card>
 
-    {view === 'edit_combo' && (
+    {view === 'edit_combo' && editingCombo && (
         <ComboForm
           combo={editingCombo}
           onSave={handleSaveCombo}
-          onCancel={() => setView('list')}
-          onManageDiscounts={(rules) => handleManageDiscounts(rules)}
+          onCancel={handleCloseForms}
+          onManageDiscounts={handleManageDiscounts}
         />
     )}
 
