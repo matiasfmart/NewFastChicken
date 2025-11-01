@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,9 +7,10 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFirestore } from '@/hooks/use-firebase';
-import { collection, query, where, Timestamp } from 'firebase/firestore';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { collection, query, where, Timestamp, getDocs } from 'firebase/firestore';
 import type { Order, InventoryItem, Combo } from '@/lib/types';
+import { getCombos } from '@/services/comboService';
+import { getInventoryItems } from '@/services/inventoryService';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
@@ -26,35 +28,62 @@ type ChartData = {
 
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const [ordersCollection, ordersLoading] = useCollection(
-      firestore ? query(collection(firestore, 'orders'), where('createdAt', '>=', Timestamp.fromDate(today)), where('createdAt', '<', Timestamp.fromDate(tomorrow))) : null
-  );
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [combos, setCombos] = useState<Combo[]>([]);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [combosCollection, combosLoading] = useCollection(
-      firestore ? collection(firestore, 'combos') : null
-  );
-  
-  const [inventoryCollection, inventoryLoading] = useCollection(
-      firestore ? collection(firestore, 'inventory') : null
-  );
+  const fetchData = async () => {
+      if (!firestore) return;
+      setIsLoading(true);
+      try {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const orders = useMemo(() => ordersCollection?.docs.map(d => ({...d.data(), id: d.id, createdAt: d.data().createdAt.toDate() } as Order)) || [], [ordersCollection]);
-  const combos = useMemo(() => combosCollection?.docs.map(d => ({...d.data(), id: d.id } as Combo)) || [], [combosCollection]);
-  const inventory = useMemo(() => inventoryCollection?.docs.map(d => ({...d.data(), id: d.id } as InventoryItem)) || [], [inventoryCollection]);
+          const ordersQuery = query(
+              collection(firestore, 'orders'),
+              where('createdAt', '>=', Timestamp.fromDate(today)),
+              where('createdAt', '<', Timestamp.fromDate(tomorrow))
+          );
+          
+          const [ordersSnapshot, combosData, inventoryData] = await Promise.all([
+              getDocs(ordersQuery),
+              getCombos(firestore),
+              getInventoryItems(firestore)
+          ]);
+
+          const ordersResult = ordersSnapshot.docs.map(d => ({...d.data(), id: d.id, createdAt: d.data().createdAt.toDate() } as Order));
+
+          setOrders(ordersResult);
+          setCombos(combosData);
+          setInventory(inventoryData);
+
+      } catch (error) {
+          console.error("Failed to fetch dashboard data:", error);
+      } finally {
+          setIsLoading(false);
+      }
+  }
+
+  useEffect(() => {
+    fetchData();
+  }, [firestore]);
+
 
   const { comboSalesData, totalSales, totalRevenue, chartData, topSeller } = useMemo(() => {
-    if (ordersLoading || combosLoading) return { comboSalesData: [], totalSales: 0, totalRevenue: 0, chartData: [], topSeller: null };
+    if (isLoading) return { comboSalesData: [], totalSales: 0, totalRevenue: 0, chartData: [], topSeller: null };
 
     const salesMap = new Map<string, { sales: number, revenue: number }>();
 
     for(const order of orders) {
         for(const item of order.items) {
-            const comboId = item.combo.id;
+            // It might happen that a combo was deleted but orders still reference it.
+            const comboId = item.combo?.id;
+            if (!comboId) continue;
+            
             const current = salesMap.get(comboId) || { sales: 0, revenue: 0 };
             current.sales += item.quantity;
             current.revenue += item.finalUnitPrice * item.quantity;
@@ -69,9 +98,15 @@ export default function AdminDashboardPage() {
 
     const data: ComboSaleData[] = Array.from(salesMap.entries()).map(([comboId, data]) => {
         const combo = comboDetails[comboId];
+        const comboType = combo?.type || 'Otro';
+        let friendlyType = 'Otro';
+        if (comboType === 'PO') friendlyType = 'Pollo';
+        else if (comboType === 'BG') friendlyType = 'Hamburguesa';
+        else if (['E', 'ES', 'EP'].includes(comboType)) friendlyType = 'Individual';
+
         return {
-            name: combo?.name || 'Combo Desconocido',
-            type: combo?.type === 'PO' ? 'Pollo' : (combo?.type === 'BG' ? 'Hamburguesa' : (['E', 'ES', 'EP'].includes(combo?.type || '') ? 'Individual' : 'Otro')),
+            name: combo?.name || `ID: ${comboId}`,
+            type: friendlyType,
             sales: data.sales,
             revenue: data.revenue
         };
@@ -100,11 +135,10 @@ export default function AdminDashboardPage() {
         topSeller: generatedTopSeller
     }
 
-  }, [orders, combos, ordersLoading, combosLoading]);
+  }, [orders, combos, isLoading]);
 
   const lowStockItems = useMemo(() => inventory.filter(item => item.stock < 10).sort((a, b) => a.stock - b.stock), [inventory]);
 
-  const isLoading = ordersLoading || combosLoading || inventoryLoading;
 
   if (isLoading) {
       return (
@@ -221,5 +255,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    
