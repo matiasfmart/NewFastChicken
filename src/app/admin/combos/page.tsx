@@ -30,7 +30,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     const [type, setType] = useState<DiscountRuleType>(rule?.type || 'weekday');
     const [value, setValue] = useState(rule?.value || '0');
     const [percentage, setPercentage] = useState(rule?.percentage || 10);
-    const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' && rule.value ? new Date(rule.value) : new Date());
+    const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' && rule.value ? new Date(rule.value) : undefined);
 
     const handleSave = () => {
         const finalValue = type === 'date' ? format(date!, 'yyyy-MM-dd') : value;
@@ -39,7 +39,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
 
     return (
         <Dialog open onOpenChange={(open) => !open && onCancel()}>
-            <DialogContent>
+            <DialogContent onInteractOutside={(e) => e.preventDefault()}>
                 <DialogHeader>
                     <DialogTitle>{rule?.id ? 'Editar' : 'Nueva'} Regla de Descuento</DialogTitle>
                 </DialogHeader>
@@ -66,13 +66,31 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
                         </div>
                     )}
                     {type === 'date' && (
-                       <Calendar
-                            mode="single"
-                            selected={date}
-                            onSelect={setDate}
-                            className="rounded-md border"
-                            initialFocus
-                        />
+                        <div className="space-y-2">
+                           <Label>Fecha</Label>
+                           <Popover>
+                             <PopoverTrigger asChild>
+                               <Button
+                                 variant={"outline"}
+                                 className={cn(
+                                   "w-full justify-start text-left font-normal",
+                                   !date && "text-muted-foreground"
+                                 )}
+                               >
+                                 <CalendarIcon className="mr-2 h-4 w-4" />
+                                 {date ? format(date, "PPP") : <span>Elija una fecha</span>}
+                               </Button>
+                             </PopoverTrigger>
+                             <PopoverContent className="w-auto p-0">
+                               <Calendar
+                                 mode="single"
+                                 selected={date}
+                                 onSelect={setDate}
+                                 initialFocus
+                               />
+                             </PopoverContent>
+                           </Popover>
+                        </div>
                     )}
                     <div className="space-y-2">
                         <Label>Porcentaje de Descuento (%)</Label>
@@ -88,42 +106,48 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     )
 }
 
-function ComboForm({ combo, onSave, onCancel, onOpenRuleForm }: { combo: Partial<Combo>, onSave: (combo: Partial<Combo>) => void, onCancel: () => void, onOpenRuleForm: (rule: Partial<DiscountRule>) => void }) {
-  const [formData, setFormData] = useState<Partial<Combo>>(combo);
+function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void }) {
+  const [formData, setFormData] = useState<Partial<Combo> | null>(combo ? JSON.parse(JSON.stringify(combo)) : null);
+  const [activeForm, setActiveForm] = useState<'combo' | 'rule'>('combo');
+  const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
 
   useEffect(() => {
     if(combo) {
-        setFormData(combo);
+        setFormData(JSON.parse(JSON.stringify(combo)));
     }
   }, [combo]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseFloat(value) || 0 : value }));
+    setFormData(prev => prev ? ({ ...prev, [name]: type === 'number' ? parseFloat(value) || 0 : value }) : null);
   };
 
   const handleProductChange = (index: number, field: 'productId' | 'quantity', value: string) => {
+    if (!formData) return;
     const updatedProducts = [...(formData.products || [])];
     if (field === 'quantity') {
       updatedProducts[index] = { ...updatedProducts[index], quantity: parseInt(value, 10) || 1 };
     } else {
        updatedProducts[index] = { ...updatedProducts[index], productId: value };
     }
-    setFormData(prev => ({ ...prev, products: updatedProducts }));
+    setFormData(prev => prev ? ({ ...prev, products: updatedProducts }) : null);
   };
   
   const addProduct = () => {
     const newProduct: ComboProduct = { productId: allInventory[0].id, quantity: 1 };
-    setFormData(prev => ({ ...prev, products: [...(prev.products || []), newProduct] }));
+    setFormData(prev => prev ? ({ ...prev, products: [...(prev.products || []), newProduct] }) : null);
   };
 
   const removeProduct = (index: number) => {
-    setFormData(prev => ({...prev, products: formData.products?.filter((_, i) => i !== index)}));
+    if (!formData) return;
+    setFormData(prev => prev ? ({...prev, products: formData.products?.filter((_, i) => i !== index)}) : null);
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    if(formData) {
+        onSave(formData);
+    }
   };
   
   const getDiscountDisplay = (rule: DiscountRule) => {
@@ -141,7 +165,39 @@ function ComboForm({ combo, onSave, onCancel, onOpenRuleForm }: { combo: Partial
   }
 
   const removeRule = (ruleId: string) => {
-    setFormData(prev => ({...prev, discounts: prev.discounts?.filter(d => d.id !== ruleId)}));
+    if (!formData) return;
+    setFormData(prev => prev ? ({...prev, discounts: prev.discounts?.filter(d => d.id !== ruleId)}) : null);
+  }
+
+  const handleOpenRuleForm = (rule: Partial<DiscountRule>) => {
+    setEditingRule(rule);
+    setActiveForm('rule');
+  }
+
+  const handleSaveRule = (rule: DiscountRule) => {
+    if (formData) {
+        const updatedDiscounts = [...(formData.discounts || [])];
+        const existingIndex = updatedDiscounts.findIndex(d => d.id === rule.id);
+        if (existingIndex > -1) {
+            updatedDiscounts[existingIndex] = rule;
+        } else {
+            updatedDiscounts.push(rule);
+        }
+        setFormData(prev => prev ? ({ ...prev, discounts: updatedDiscounts }) : null);
+    }
+    setActiveForm('combo');
+    setEditingRule(null);
+  }
+
+  const handleCancelRuleForm = () => {
+      setActiveForm('combo');
+      setEditingRule(null);
+  }
+  
+  if (!formData) return null;
+
+  if (activeForm === 'rule') {
+      return <DiscountRuleForm rule={editingRule} onSave={handleSaveRule} onCancel={handleCancelRuleForm} />
   }
 
   return (
@@ -201,7 +257,7 @@ function ComboForm({ combo, onSave, onCancel, onOpenRuleForm }: { combo: Partial
             <div className="space-y-4">
                 <div className="flex justify-between items-center">
                     <Label>Reglas de Descuento</Label>
-                    <Button type="button" size="sm" variant="outline" onClick={() => onOpenRuleForm({})}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
+                    <Button type="button" size="sm" variant="outline" onClick={() => handleOpenRuleForm({})}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
                 </div>
                  <div className="space-y-2">
                     {formData.discounts?.map((rule) => (
@@ -210,7 +266,7 @@ function ComboForm({ combo, onSave, onCancel, onOpenRuleForm }: { combo: Partial
                             <p className="font-semibold">{rule.percentage}% OFF</p>
                             <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
                         </div>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => onOpenRuleForm(rule)}>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => handleOpenRuleForm(rule)}>
                             <Pencil className="h-4 w-4" />
                         </Button>
                          <Button type="button" variant="ghost" size="icon" onClick={() => removeRule(rule.id)} className="text-destructive">
@@ -237,9 +293,8 @@ function ComboForm({ combo, onSave, onCancel, onOpenRuleForm }: { combo: Partial
 export default function CombosPage() {
   const [combos, setCombos] = useState<Combo[]>(initialCombos.filter(c => ['PO', 'BG', 'E'].includes(c.type)));
   
-  const [activeForm, setActiveForm] = useState<'none' | 'combo' | 'rule'>('none');
+  const [isFormOpen, setFormOpen] = useState(false);
   const [editingCombo, setEditingCombo] = useState<Partial<Combo> | null>(null);
-  const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
 
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [deletingComboId, setDeletingComboId] = useState<string | null>(null);
@@ -254,12 +309,12 @@ export default function CombosPage() {
       products: [],
       discounts: [],
     });
-    setActiveForm('combo');
+    setFormOpen(true);
   };
 
   const openEditForm = (combo: Combo) => {
-    setEditingCombo(JSON.parse(JSON.stringify(combo)));
-    setActiveForm('combo');
+    setEditingCombo(combo);
+    setFormOpen(true);
   };
   
   const handleSaveCombo = (comboData: Partial<Combo>) => {
@@ -273,7 +328,7 @@ export default function CombosPage() {
             return [...prev, comboData as Combo];
         }
     });
-    setActiveForm('none');
+    setFormOpen(false);
     setEditingCombo(null);
   }
 
@@ -291,34 +346,8 @@ export default function CombosPage() {
   };
 
   const handleCloseForms = () => {
-    setActiveForm('none');
+    setFormOpen(false);
     setEditingCombo(null);
-    setEditingRule(null);
-  }
-
-  const handleOpenRuleForm = (rule: Partial<DiscountRule>) => {
-    setEditingRule(rule);
-    setActiveForm('rule');
-  }
-  
-  const handleSaveRule = (rule: DiscountRule) => {
-    if (editingCombo) {
-        const updatedDiscounts = [...(editingCombo.discounts || [])];
-        const existingIndex = updatedDiscounts.findIndex(d => d.id === rule.id);
-        if (existingIndex > -1) {
-            updatedDiscounts[existingIndex] = rule;
-        } else {
-            updatedDiscounts.push(rule);
-        }
-        setEditingCombo(prev => ({ ...prev, discounts: updatedDiscounts }));
-    }
-    setActiveForm('combo');
-    setEditingRule(null);
-  }
-  
-  const handleCancelRuleForm = () => {
-      setActiveForm('combo');
-      setEditingRule(null);
   }
   
   const getDiscountDisplay = (rule: DiscountRule) => {
@@ -403,20 +432,11 @@ export default function CombosPage() {
       </CardContent>
     </Card>
 
-    {activeForm === 'combo' && editingCombo && (
+    {isFormOpen && editingCombo && (
         <ComboForm
           combo={editingCombo}
           onSave={handleSaveCombo}
           onCancel={handleCloseForms}
-          onOpenRuleForm={handleOpenRuleForm}
-        />
-    )}
-
-    {activeForm === 'rule' && editingRule !== null && (
-        <DiscountRuleForm 
-            rule={editingRule} 
-            onSave={handleSaveRule}
-            onCancel={handleCancelRuleForm}
         />
     )}
       
@@ -437,5 +457,3 @@ export default function CombosPage() {
     </>
   );
 }
-
-    
