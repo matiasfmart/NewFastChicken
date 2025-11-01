@@ -34,12 +34,14 @@ export const combos: Combo[] = [
     name: 'Combo Pollo Clásico',
     description: '2 presas + bebida + guarnición',
     price: 3500,
-    discount: 10,
     products: [
       { productId: 'p1', quantity: 2 },
       { productId: 'd1', quantity: 1 },
       { productId: 's1', quantity: 1 },
     ],
+    discounts: [
+        { id: 'dr1', type: 'weekday', value: '3', percentage: 15 } // 15% off on Wednesdays
+    ]
   },
   {
     id: 'PO2',
@@ -64,6 +66,9 @@ export const combos: Combo[] = [
       { productId: 'd1', quantity: 1 },
       { productId: 's1', quantity: 1 },
     ],
+    discounts: [
+        { id: 'dr2', type: 'weekday', value: '5', percentage: 20 } // 20% off on Fridays
+    ]
   },
   // Individual items as combos are now deprecated by this change,
   // but kept for compatibility. They won't be customizable in the cashier view.

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -28,7 +29,7 @@ const TicketLayout = ({ order, isKitchen }: { order: Order; isKitchen: boolean }
             <span className="font-bold">{item.quantity}x {item.combo.name}</span>
             {!isKitchen && (
                  <div className="flex flex-col items-end">
-                    {item.combo.discount ? (
+                    {item.appliedDiscount ? (
                         <>
                            <span className="text-xs line-through text-muted-foreground">${item.unitPrice.toLocaleString('es-AR')}</span>
                            <span className="font-bold">${item.finalUnitPrice.toLocaleString('es-AR')} c/u</span>
@@ -39,7 +40,7 @@ const TicketLayout = ({ order, isKitchen }: { order: Order; isKitchen: boolean }
                  </div>
             )}
         </div>
-        {!isKitchen && item.combo.discount && <Badge variant="outline" className="text-accent-foreground bg-accent mb-1">{item.combo.discount}% OFF</Badge>}
+        {!isKitchen && item.appliedDiscount && <Badge variant="outline" className="text-accent-foreground bg-accent mb-1">{item.appliedDiscount.percentage}% OFF</Badge>}
 
         <div className="pl-4 text-muted-foreground">
             {item.customizations.product && <div>{item.customizations.product.name}</div>}

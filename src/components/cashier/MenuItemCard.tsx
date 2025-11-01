@@ -1,19 +1,40 @@
+
 "use client";
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Combo, InventoryItem } from "@/lib/types";
+import type { Combo, InventoryItem, DiscountRule } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { format } from 'date-fns';
 
 interface MenuItemCardProps {
   item: Combo | InventoryItem;
   onSelect: () => void;
 }
 
+const getActiveDiscount = (combo: Combo): number | null => {
+    if (!combo.discounts || combo.discounts.length === 0) return null;
+
+    const today = new Date();
+    const todayWeekday = today.getDay().toString();
+    const todayDate = format(today, 'yyyy-MM-dd');
+
+    for (const rule of combo.discounts) {
+        if (rule.type === 'weekday' && rule.value === todayWeekday) {
+            return rule.percentage;
+        }
+        if (rule.type === 'date' && rule.value === todayDate) {
+            return rule.percentage;
+        }
+    }
+    return null;
+}
+
+
 export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
-  const isCombo = 'type' in item && ['PO', 'BG', 'E', 'ES', 'EP'].includes(item.type);
+  const isCombo = 'products' in item;
   const combo = isCombo ? (item as Combo) : null;
-  const discount = combo?.discount;
+  const discount = combo ? getActiveDiscount(combo) : null;
   const finalPrice = discount ? item.price * (1 - discount / 100) : item.price;
 
   return (

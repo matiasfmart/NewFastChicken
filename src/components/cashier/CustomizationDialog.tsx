@@ -2,9 +2,10 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import type { Combo, InventoryItem, OrderItem } from '@/lib/types';
+import type { Combo, InventoryItem, OrderItem, DiscountRule } from '@/lib/types';
 import { useOrder } from '@/context/OrderContext';
 import { drinks as allDrinks, sides as allSides, products as allProducts } from '@/lib/data';
+import { format } from 'date-fns';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,6 +25,24 @@ interface CustomizationDialogProps {
 
 // All individual items that can be part of a combo
 const allComboItems = [...allProducts, ...allSides, ...allDrinks];
+
+const getActiveDiscount = (combo: Combo): { rule: DiscountRule, percentage: number} | null => {
+    if (!combo.discounts || combo.discounts.length === 0) return null;
+
+    const today = new Date();
+    const todayWeekday = today.getDay().toString();
+    const todayDate = format(today, 'yyyy-MM-dd');
+
+    for (const rule of combo.discounts) {
+        if (rule.type === 'weekday' && rule.value === todayWeekday) {
+            return { rule, percentage: rule.percentage };
+        }
+        if (rule.type === 'date' && rule.value === todayDate) {
+            return { rule, percentage: rule.percentage };
+        }
+    }
+    return null;
+}
 
 export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDialogProps) {
   const { addItemToOrder, getInventoryStock } = useOrder();
@@ -89,8 +108,8 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
         price = selectedDrink.price;
     }
     
-    const discount = combo.discount || 0;
-    const finalPrice = price * (1 - discount / 100);
+    const activeDiscount = getActiveDiscount(combo);
+    const finalPrice = activeDiscount ? price * (1 - activeDiscount.percentage / 100) : price;
 
     const customizations = {
         drink: selectedDrink,
@@ -106,6 +125,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
       quantity: 1,
       unitPrice: price,
       finalUnitPrice: finalPrice,
+      appliedDiscount: activeDiscount ? { percentage: activeDiscount.percentage, rule: activeDiscount.rule } : undefined,
       customizations
     };
 

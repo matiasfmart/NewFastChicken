@@ -15,14 +15,23 @@ export interface ComboProduct {
   quantity: number;
 }
 
+export type DiscountRuleType = 'weekday' | 'date';
+
+export interface DiscountRule {
+    id: string;
+    type: DiscountRuleType;
+    value: string; // e.g., '1' for Monday, or '2024-12-25' for a specific date
+    percentage: number;
+}
+
 export interface Combo {
   id: string;
   type: 'PO' | 'BG' | 'E' | 'ES' | 'EP'; // Main category, can be deprecated if we use items
   name: string;
   description: string;
   price: number;
-  discount?: number;
   products: ComboProduct[]; // List of inventory items (products, sides, drinks)
+  discounts?: DiscountRule[];
 }
 
 export interface OrderItem {
@@ -31,6 +40,10 @@ export interface OrderItem {
   quantity: number;
   unitPrice: number;
   finalUnitPrice: number;
+  appliedDiscount?: {
+    percentage: number;
+    rule: DiscountRule;
+  };
   customizations: {
     drink?: InventoryItem;
     side?: InventoryItem;

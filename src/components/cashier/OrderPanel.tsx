@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -9,6 +10,7 @@ import { Trash2, Plus, Minus } from 'lucide-react';
 import { DeliveryTypeSelector } from '../icons/DeliveryIcons';
 import { CheckoutDialog } from './CheckoutDialog';
 import type { Order } from '@/lib/types';
+import { Badge } from '../ui/badge';
 
 export function OrderPanel() {
   const { orderItems, updateItemQuantity, removeItemFromOrder, clearOrder, deliveryType, setDeliveryType, finalizeOrder, currentOrderNumber } = useOrder();
@@ -48,7 +50,12 @@ export function OrderPanel() {
                 <div key={item.id} className="flex gap-4">
                   <div className="flex-1">
                     <p className="font-semibold">{item.combo.name}</p>
-                    <div className="text-xs text-muted-foreground">
+                    {item.appliedDiscount && (
+                        <Badge variant="outline" className="text-accent-foreground bg-accent mt-1 -ml-1">
+                            {item.appliedDiscount.percentage}% OFF
+                        </Badge>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">
                         {item.customizations.product && <div>{item.customizations.product.name}</div>}
                         {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
                         {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
