@@ -15,9 +15,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertCircle, Flame } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore } from '@/hooks/use-firebase';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection } from 'firebase/firestore';
 
 const getActiveDiscount = (combo: Combo): { rule: DiscountRule, percentage: number} | null => {
     if (!combo.discounts || combo.discounts.length === 0) return null;
@@ -38,12 +35,8 @@ const getActiveDiscount = (combo: Combo): { rule: DiscountRule, percentage: numb
 }
 
 export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean; onClose: () => void; item: Combo | InventoryItem; }) {
-  const { addItemToOrder, getInventoryStock } = useOrder();
+  const { addItemToOrder, getInventoryStock, inventory: allInventory } = useOrder();
   const { toast } = useToast();
-  const firestore = useFirestore();
-
-  const [productsCollection] = useCollection(firestore ? collection(firestore, 'inventory') : null);
-  const allInventory = useMemo(() => productsCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [], [productsCollection]);
 
   const isCombo = 'products' in item;
   const combo = isCombo ? (item as Combo) : null;
@@ -227,5 +220,3 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     </Dialog>
   );
 }
-
-    

@@ -6,21 +6,22 @@ import { InventoryTabs } from "@/components/admin/InventoryTabs";
 import type { InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where } from 'firebase/firestore';
 import { useFirestore } from '@/hooks/use-firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '@/services/inventoryService';
 
 export default function InventoryPage() {
   const firestore = useFirestore();
 
   const [productsCollection, productsLoading, productsError] = useCollection(
-    firestore ? collection(firestore, 'inventory').where('type', '==', 'product') : null
+    firestore ? query(collection(firestore, 'inventory'), where('type', '==', 'product')) : null
   );
   const [drinksCollection, drinksLoading, drinksError] = useCollection(
-    firestore ? collection(firestore, 'inventory').where('type', '==', 'drink') : null
+    firestore ? query(collection(firestore, 'inventory'), where('type', '==', 'drink')) : null
   );
   const [sidesCollection, sidesLoading, sidesError] = useCollection(
-    firestore ? collection(firestore, 'inventory').where('type', '==', 'side') : null
+    firestore ? query(collection(firestore, 'inventory'), where('type', '==', 'side')) : null
   );
 
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
@@ -30,13 +31,13 @@ export default function InventoryPage() {
   const drinks = drinksCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
   const sides = sidesCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
 
-  const updateInventory = async (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
+  const handleSaveInventory = async (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
     if (!firestore) return;
     const { id, ...data } = item;
     if (id.startsWith('new-')) {
-      await addDoc(collection(firestore, 'inventory'), data);
+      await addInventoryItem(firestore, data as Omit<InventoryItem, 'id'>);
     } else {
-      await updateDoc(doc(firestore, 'inventory', id), data);
+      await updateInventoryItem(firestore, id, data);
     }
   }
 
@@ -47,7 +48,7 @@ export default function InventoryPage() {
 
   const handleDelete = async () => {
     if (itemToDelete && firestore) {
-      await deleteDoc(doc(firestore, 'inventory', itemToDelete.id));
+      await deleteInventoryItem(firestore, itemToDelete.id);
       setDeleteAlertOpen(false);
       setItemToDelete(null);
     }
@@ -74,7 +75,7 @@ export default function InventoryPage() {
           drinks={drinks} 
           sides={sides}
           onDeleteItem={confirmDeleteItem}
-          onSaveItem={updateInventory}
+          onSaveItem={handleSaveInventory}
         />
       )}
 

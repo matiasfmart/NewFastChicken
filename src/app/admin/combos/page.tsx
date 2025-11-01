@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { MoreHorizontal, PlusCircle, Trash2, Tag, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Combo, ComboProduct, DiscountRule, DiscountRuleType, InventoryItem } from '@/lib/types';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -22,8 +22,9 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { useFirestore } from '@/hooks/use-firebase';
 import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import { addCombo, updateCombo, deleteCombo } from '@/services/comboService';
 
 const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -343,9 +344,9 @@ export default function CombosPage() {
     const { id, ...data } = comboData;
     
     if (id) {
-        await updateDoc(doc(firestore, 'combos', id), data);
+        await updateCombo(firestore, id, data);
     } else {
-        await addDoc(collection(firestore, 'combos'), data);
+        await addCombo(firestore, data as Omit<Combo, 'id'>);
     }
     
     setFormOpen(false);
@@ -359,7 +360,7 @@ export default function CombosPage() {
 
   const handleDelete = async () => {
     if (deletingComboId && firestore) {
-      await deleteDoc(doc(firestore, 'combos', deletingComboId));
+      await deleteCombo(firestore, deletingComboId);
       setDeleteAlertOpen(false);
       setDeletingComboId(null);
     }
@@ -486,5 +487,3 @@ export default function CombosPage() {
     </>
   );
 }
-
-    

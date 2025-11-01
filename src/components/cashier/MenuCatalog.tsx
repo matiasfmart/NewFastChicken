@@ -7,19 +7,12 @@ import { MenuItemCard } from './MenuItemCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useFirestore } from '@/hooks/use-firebase';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection } from 'firebase/firestore';
 import { Skeleton } from '../ui/skeleton';
+import { useOrder } from '@/context/OrderContext';
 
 
 export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | InventoryItem) => void; }) {
-  const firestore = useFirestore();
-  const [combosCollection, combosLoading] = useCollection(firestore ? collection(firestore, 'combos') : null);
-  const [inventoryCollection, inventoryLoading] = useCollection(firestore ? collection(firestore, 'inventory') : null);
-
-  const combos = useMemo(() => combosCollection?.docs.map(d => ({ ...d.data(), id: d.id } as Combo)) || [], [combosCollection]);
-  const inventory = useMemo(() => inventoryCollection?.docs.map(d => ({ ...d.data(), id: d.id } as InventoryItem)) || [], [inventoryCollection]);
+  const { combos, inventory, isLoading } = useOrder();
   
   const { products, drinks, sides } = useMemo(() => {
     return {
@@ -45,8 +38,6 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
     };
   }, [searchTerm, combos, products, drinks, sides]);
   
-  const isLoading = combosLoading || inventoryLoading;
-
   const renderGrid = (items: (Combo | InventoryItem)[]) => {
       if (isLoading) {
           return (
@@ -100,5 +91,3 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
     </div>
   );
 }
-
-    

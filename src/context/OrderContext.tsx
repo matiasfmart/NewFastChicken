@@ -2,17 +2,21 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
-import type { OrderItem, DeliveryType, Order, InventoryItem } from "@/lib/types";
+import type { OrderItem, DeliveryType, Order, InventoryItem, Combo } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore } from "@/hooks/use-firebase";
 import { useCollection } from "react-firebase-hooks/firestore";
-import { collection, addDoc, doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { collection, doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { createOrderWithStockUpdate } from "@/services/orderService";
 
 interface OrderContextType {
   orderItems: OrderItem[];
   currentOrderNumber: number;
   completedOrders: Order[];
   deliveryType: DeliveryType;
+  combos: Combo[];
+  inventory: InventoryItem[];
+  isLoading: boolean;
   addItemToOrder: (item: OrderItem) => void;
   updateItemQuantity: (itemId: string, quantity: number) => void;
   removeItemFromOrder: (itemId: string) => void;
@@ -29,12 +33,16 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const { toast } = useToast();
   const firestore = useFirestore();
 
-  const [inventoryCollection] = useCollection(firestore ? collection(firestore, 'inventory') : null);
+  const [inventoryCollection, inventoryLoading] = useCollection(firestore ? collection(firestore, 'inventory') : null);
+  const [combosCollection, combosLoading] = useCollection(firestore ? collection(firestore, 'combos') : null);
+
+  const inventory = useMemo(() => inventoryCollection?.docs.map(d => ({ ...d.data(), id: d.id } as InventoryItem)) || [], [inventoryCollection]);
+  const combos = useMemo(() => combosCollection?.docs.map(d => ({ ...d.data(), id: d.id } as Combo)) || [], [combosCollection]);
   
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('local');
   
-  const [inventory, setInventory] = useState<Record<string, number>>({});
+  const [inventoryStock, setInventoryStock] = useState<Record<string, number>>({});
   
   const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
@@ -46,11 +54,11 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             acc[doc.id] = item.stock;
             return acc;
         }, {} as Record<string, number>);
-        setInventory(stock);
+        setInventoryStock(stock);
     }
   }, [inventoryCollection]);
 
-  const getInventoryStock = useCallback((itemId: string) => inventory[itemId], [inventory]);
+  const getInventoryStock = useCallback((itemId: string) => inventoryStock[itemId], [inventoryStock]);
 
   const addItemToOrder = (newItem: OrderItem) => {
     setOrderItems((prevItems) => {
@@ -87,83 +95,44 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     clearOrder();
     setCompletedOrders([]);
     setCurrentOrderNumber(1);
-    // Inventory will be refetched automatically by useCollection
   }, [clearOrder]);
 
   const finalizeOrder = async (): Promise<Order | null> => {
     if (orderItems.length === 0 || !firestore) return null;
 
+    const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+    const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
+    
+    const newOrderData = {
+        items: orderItems,
+        deliveryType,
+        subtotal,
+        discount: subtotal - total,
+        total,
+        createdAt: Timestamp.now(),
+    };
+
+
     try {
-        const finalOrder = await runTransaction(firestore, async (transaction) => {
-            const inventoryItemsForToast: Record<string, InventoryItem> = {};
-            if (inventoryCollection) {
-                for(const doc of inventoryCollection.docs) {
-                    inventoryItemsForToast[doc.id] = doc.data() as InventoryItem;
-                }
-            }
-            
-            // 1. Check stock and get fresh data for all items
-            for (const orderItem of orderItems) {
-                const { combo, quantity, customizations } = orderItem;
-
-                if (combo.products) {
-                    for (const productInCombo of combo.products) {
-                        const itemRef = doc(firestore, "inventory", productInCombo.productId);
-                        const itemDoc = await transaction.get(itemRef);
-
-                        if (!itemDoc.exists()) {
-                            throw new Error(`El producto con ID ${productInCombo.productId} no existe.`);
-                        }
-                        
-                        const currentStock = itemDoc.data().stock;
-                        if (currentStock < productInCombo.quantity * quantity) {
-                            throw new Error(`No hay suficiente stock para: ${itemDoc.data().name}.`);
-                        }
-                    }
-                }
-            }
-
-            // 2. If all checks pass, decrement stock
-            for (const orderItem of orderItems) {
-                const { combo, quantity } = orderItem;
-                if (combo.products) {
-                    for (const productInCombo of combo.products) {
-                        const itemRef = doc(firestore, "inventory", productInCombo.productId);
-                        // We already got the doc, so we can just update based on that.
-                        const itemDoc = await transaction.get(itemRef);
-                        const newStock = itemDoc.data()!.stock - productInCombo.quantity * quantity;
-                        transaction.update(itemRef, { stock: newStock });
-                    }
-                }
-            }
-
-            // 3. Create the order
-            const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-            const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
-            
-            const newOrderData = {
-                items: orderItems,
-                deliveryType,
-                subtotal,
-                discount: subtotal - total,
-                total,
-                createdAt: Timestamp.now(),
-            };
-
-            const orderRef = await addDoc(collection(firestore, 'orders'), newOrderData);
-
-            // This is the object that will be returned by the transaction
-            return {
-                ...newOrderData,
-                id: orderRef.id, // using the generated doc id
-                createdAt: newOrderData.createdAt.toDate(),
-            };
-        });
+        const finalOrder = await createOrderWithStockUpdate(firestore, newOrderData);
 
         // After transaction is successful
         setCompletedOrders(prev => [...prev, finalOrder]);
-        setCurrentOrderNumber(prev => prev + 1); // This is just for display on the frontend now
+        setCurrentOrderNumber(prev => prev + 1);
         clearOrder();
+
+        // Update local inventory stock state for immediate UI feedback
+        setInventoryStock(prevStock => {
+            const newStock = { ...prevStock };
+            finalOrder.items.forEach(orderItem => {
+                if (orderItem.combo.products) {
+                    orderItem.combo.products.forEach(p => {
+                        newStock[p.productId] -= p.quantity * orderItem.quantity;
+                    });
+                }
+            });
+            return newStock;
+        });
 
         return finalOrder;
 
@@ -173,6 +142,8 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  const isLoading = inventoryLoading || combosLoading;
+
   return (
     <OrderContext.Provider
       value={{
@@ -180,6 +151,9 @@ export const OrderProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         deliveryType,
         currentOrderNumber,
         completedOrders,
+        combos,
+        inventory,
+        isLoading,
         addItemToOrder,
         updateItemQuantity,
         removeItemFromOrder,
@@ -202,5 +176,3 @@ export const useOrder = () => {
   }
   return context;
 };
-
-    
