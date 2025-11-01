@@ -49,10 +49,10 @@ export function OrderPanel() {
                   <div className="flex-1">
                     <p className="font-semibold">{item.combo.name}</p>
                     <div className="text-xs text-muted-foreground">
-                        {item.customizations.product && <p>{item.customizations.product.name}</p>}
-                        {item.customizations.side && <p>+ {item.customizations.side.name}</p>}
-                        {item.customizations.drink && <p>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</p>}
-                        {item.customizations.isSpicy && <p className="font-semibold text-destructive-foreground">CON PICANTE</p>}
+                        {item.customizations.product && <div>{item.customizations.product.name}</div>}
+                        {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
+                        {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
+                        {item.customizations.isSpicy && <div className="font-semibold text-destructive-foreground">CON PICANTE</div>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

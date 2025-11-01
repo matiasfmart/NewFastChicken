@@ -42,10 +42,10 @@ const TicketLayout = ({ order, isKitchen }: { order: Order; isKitchen: boolean }
         {!isKitchen && item.combo.discount && <Badge variant="outline" className="text-accent-foreground bg-accent mb-1">{item.combo.discount}% OFF</Badge>}
 
         <div className="pl-4 text-muted-foreground">
-            {item.customizations.product && <p>{item.customizations.product.name}</p>}
-            {item.customizations.side && <p>+ {item.customizations.side.name}</p>}
-            {item.customizations.drink && <p>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</p>}
-            {item.customizations.isSpicy && <p className="font-semibold text-destructive">CON PICANTE</p>}
+            {item.customizations.product && <div>{item.customizations.product.name}</div>}
+            {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
+            {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
+            {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
         </div>
     </div>
   )
