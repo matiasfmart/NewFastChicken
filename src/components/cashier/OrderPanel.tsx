@@ -59,7 +59,7 @@ export function OrderPanel() {
                         {item.customizations.product && <div>{item.customizations.product.name}</div>}
                         {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
                         {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
-                        {item.customizations.isSpicy && <div className="font-semibold text-destructive-foreground">CON PICANTE</div>}
+                        {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -116,3 +116,5 @@ export function OrderPanel() {
     </>
   );
 }
+
+    

@@ -38,7 +38,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     }
 
     return (
-        <Dialog open onOpenChange={onCancel}>
+        <Dialog open onOpenChange={(open) => !open && onCancel()}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{rule?.id ? 'Editar' : 'Nueva'} Regla de Descuento</DialogTitle>
@@ -174,9 +174,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Remove the deprecated top-level discount before saving
-    const { ...comboToSave } = formData;
-    onSave(comboToSave);
+    onSave(formData);
   };
   
   const getDiscountDisplay = (rule: DiscountRule) => {
@@ -430,3 +428,5 @@ export default function CombosPage() {
     </>
   );
 }
+
+    

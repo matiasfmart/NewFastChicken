@@ -130,3 +130,5 @@ export function CheckoutDialog({ order, onClose }: CheckoutDialogProps) {
     </Dialog>
   );
 }
+
+    
