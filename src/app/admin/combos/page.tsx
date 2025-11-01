@@ -42,7 +42,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     }
 
     return (
-       <Dialog open={true} onOpenChange={(open) => !open && onCancel()} modal={false}>
+       <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>{rule?.id ? 'Editar' : 'Nueva'} Regla de Descuento</DialogTitle>
@@ -77,6 +77,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
                             <PopoverTrigger asChild>
                             <Button
                                 variant={"outline"}
+                                type="button"
                                 className={cn(
                                 "w-full justify-start text-left font-normal",
                                 !date && "text-muted-foreground"
@@ -113,12 +114,34 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
 
 function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void }) {
   const [formData, setFormData] = useState<Partial<Combo> | null>(null);
+  const [isRuleFormOpen, setRuleFormOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
 
   useEffect(() => {
     if(combo) {
         setFormData(JSON.parse(JSON.stringify(combo)));
     }
   }, [combo]);
+  
+  const openRuleForm = (rule: Partial<DiscountRule>) => {
+    setEditingRule(rule);
+    setRuleFormOpen(true);
+  };
+
+  const handleSaveRule = (rule: DiscountRule) => {
+    if (formData) {
+        const updatedDiscounts = [...(formData.discounts || [])];
+        const existingIndex = updatedDiscounts.findIndex(d => d.id === rule.id);
+        if (existingIndex > -1) {
+            updatedDiscounts[existingIndex] = rule;
+        } else {
+            updatedDiscounts.push(rule);
+        }
+        setFormData(prev => prev ? ({ ...prev, discounts: updatedDiscounts }) : null);
+    }
+    setRuleFormOpen(false);
+    setEditingRule(null);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -171,23 +194,11 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
     if (!formData) return;
     setFormData(prev => prev ? ({...prev, discounts: prev.discounts?.filter(d => d.id !== ruleId)}) : null);
   }
-
-  const handleSaveRule = (rule: DiscountRule) => {
-    if (formData) {
-        const updatedDiscounts = [...(formData.discounts || [])];
-        const existingIndex = updatedDiscounts.findIndex(d => d.id === rule.id);
-        if (existingIndex > -1) {
-            updatedDiscounts[existingIndex] = rule;
-        } else {
-            updatedDiscounts.push(rule);
-        }
-        setFormData(prev => prev ? ({ ...prev, discounts: updatedDiscounts }) : null);
-    }
-  }
   
   if (!formData) return null;
 
   return (
+    <>
     <Dialog open={true} onOpenChange={(open) => { if (!open) onCancel() }}>
     <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
         <>
@@ -243,8 +254,9 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                     </div>
                 </div>
                 <div className="space-y-4">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-2">
                         <Label>Reglas de Descuento</Label>
+                        <Button type="button" size="sm" variant="outline" onClick={() => openRuleForm({})}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
                     </div>
                     <div className="space-y-2">
                         {formData.discounts?.map((rule) => (
@@ -253,7 +265,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                                 <p className="font-semibold">{rule.percentage}% OFF</p>
                                 <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
                             </div>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => (window as any).openRuleForm(rule)}>
+                            <Button type="button" variant="ghost" size="icon" onClick={() => openRuleForm(rule)}>
                                 <Pencil className="h-4 w-4" />
                             </Button>
                             <Button type="button" variant="ghost" size="icon" onClick={() => removeRule(rule.id)} className="text-destructive">
@@ -262,9 +274,8 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                             </div>
                         ))}
                         {(!formData.discounts || formData.discounts.length === 0) && (
-                            <p className="text-sm text-muted-foreground">No hay reglas de descuento para este combo.</p>
+                            <p className="text-sm text-muted-foreground text-center py-2">No hay reglas de descuento para este combo.</p>
                         )}
-                         <Button type="button" size="sm" variant="outline" onClick={() => (window as any).openRuleForm({})}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
                     </div>
                 </div>
                 </form>
@@ -276,6 +287,14 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
         </>
     </DialogContent>
     </Dialog>
+    {isRuleFormOpen && editingRule && (
+        <DiscountRuleForm 
+            rule={editingRule} 
+            onSave={handleSaveRule} 
+            onCancel={() => { setRuleFormOpen(false); setEditingRule(null); }}
+        />
+    )}
+    </>
   );
 }
 
@@ -287,17 +306,6 @@ export default function CombosPage() {
 
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [deletingComboId, setDeletingComboId] = useState<string | null>(null);
-
-  const [isRuleFormOpen, setRuleFormOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
-
-  useEffect(() => {
-    (window as any).openRuleForm = (rule: Partial<DiscountRule>) => {
-        setEditingRule(rule);
-        setRuleFormOpen(true);
-    };
-  }, [])
-  
 
   const openCreateForm = () => {
     setEditingCombo({
@@ -348,21 +356,6 @@ export default function CombosPage() {
   const handleCloseForms = () => {
     setFormOpen(false);
     setEditingCombo(null);
-  }
-
-  const handleSaveRule = (rule: DiscountRule) => {
-    if (editingCombo) {
-        const updatedDiscounts = [...(editingCombo.discounts || [])];
-        const existingIndex = updatedDiscounts.findIndex(d => d.id === rule.id);
-        if (existingIndex > -1) {
-            updatedDiscounts[existingIndex] = rule;
-        } else {
-            updatedDiscounts.push(rule);
-        }
-        setEditingCombo(prev => prev ? {...prev, discounts: updatedDiscounts} : null);
-    }
-    setRuleFormOpen(false);
-    setEditingRule(null);
   }
   
   const getDiscountDisplay = (rule: DiscountRule) => {
@@ -455,14 +448,6 @@ export default function CombosPage() {
         />
     )}
 
-    {isRuleFormOpen && editingRule && (
-        <DiscountRuleForm 
-            rule={editingRule} 
-            onSave={handleSaveRule} 
-            onCancel={() => { setRuleFormOpen(false); setEditingRule(null); }}
-        />
-    )}
-      
     <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
@@ -481,3 +466,4 @@ export default function CombosPage() {
   );
 }
 
+    
