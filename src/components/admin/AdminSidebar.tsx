@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Home, Package, ShoppingCart, BarChart, LogOut, Settings } from "lucide-react";
+import { Home, Package, ShoppingCart, BarChart, LogOut } from "lucide-react";
 import { FastChickenLogo } from "../icons/FastChickenLogo";
 import { logout } from "@/lib/actions";
 
