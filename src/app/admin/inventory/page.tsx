@@ -3,33 +3,41 @@
 
 import React, { useState } from 'react';
 import { InventoryTabs } from "@/components/admin/InventoryTabs";
-import { products as initialProducts, drinks as initialDrinks, sides as initialSides } from "@/lib/data";
 import type { InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { collection, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { useFirestore } from '@/hooks/use-firebase';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function InventoryPage() {
-  const [products, setProducts] = useState<InventoryItem[]>(initialProducts);
-  const [drinks, setDrinks] = useState<InventoryItem[]>(initialDrinks);
-  const [sides, setSides] = useState<InventoryItem[]>(initialSides);
+  const firestore = useFirestore();
+
+  const [productsCollection, productsLoading, productsError] = useCollection(
+    firestore ? collection(firestore, 'inventory').where('type', '==', 'product') : null
+  );
+  const [drinksCollection, drinksLoading, drinksError] = useCollection(
+    firestore ? collection(firestore, 'inventory').where('type', '==', 'drink') : null
+  );
+  const [sidesCollection, sidesLoading, sidesError] = useCollection(
+    firestore ? collection(firestore, 'inventory').where('type', '==', 'side') : null
+  );
+
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; category: 'products' | 'drinks' | 'sides' } | null>(null);
 
-  const updateInventory = (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
-    const updater = (setter: React.Dispatch<React.SetStateAction<InventoryItem[]>>) => {
-        setter(prev => {
-            const index = prev.findIndex(i => i.id === item.id);
-            if (index > -1) {
-                const updated = [...prev];
-                updated[index] = item;
-                return updated;
-            }
-            return [...prev, item];
-        })
+  const products = productsCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
+  const drinks = drinksCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
+  const sides = sidesCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
+
+  const updateInventory = async (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
+    if (!firestore) return;
+    const { id, ...data } = item;
+    if (id.startsWith('new-')) {
+      await addDoc(collection(firestore, 'inventory'), data);
+    } else {
+      await updateDoc(doc(firestore, 'inventory', id), data);
     }
-    if (category === 'products') updater(setProducts);
-    if (category === 'drinks') updater(setDrinks);
-    if (category === 'sides') updater(setSides);
   }
 
   const confirmDeleteItem = (id: string, category: 'products' | 'drinks' | 'sides') => {
@@ -37,36 +45,38 @@ export default function InventoryPage() {
     setDeleteAlertOpen(true);
   };
 
-  const handleDelete = () => {
-    if (itemToDelete) {
-      const { id, category } = itemToDelete;
-      switch(category) {
-        case 'products':
-          setProducts(prev => prev.filter(item => item.id !== id));
-          break;
-        case 'drinks':
-          setDrinks(prev => prev.filter(item => item.id !== id));
-          break;
-        case 'sides':
-          setSides(prev => prev.filter(item => item.id !== id));
-          break;
-      }
+  const handleDelete = async () => {
+    if (itemToDelete && firestore) {
+      await deleteDoc(doc(firestore, 'inventory', itemToDelete.id));
       setDeleteAlertOpen(false);
       setItemToDelete(null);
     }
   };
 
+  const isLoading = productsLoading || drinksLoading || sidesLoading;
 
   return (
     <div>
       <h1 className="text-2xl font-bold tracking-tight mb-4">Gestión de Inventario</h1>
-      <InventoryTabs 
-        products={products} 
-        drinks={drinks} 
-        sides={sides}
-        onDeleteItem={confirmDeleteItem}
-        onSaveItem={updateInventory}
-      />
+      {isLoading ? (
+        <div className="space-y-4">
+            <div className="flex space-x-4">
+                <Skeleton className="h-10 w-32" />
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-28" />
+            </div>
+            <Skeleton className="h-10 w-40 ml-auto" />
+            <Skeleton className="h-48 w-full" />
+        </div>
+      ) : (
+        <InventoryTabs 
+          products={products} 
+          drinks={drinks} 
+          sides={sides}
+          onDeleteItem={confirmDeleteItem}
+          onSaveItem={updateInventory}
+        />
+      )}
 
     <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
         <AlertDialogContent>
@@ -85,5 +95,3 @@ export default function InventoryPage() {
     </div>
   );
 }
-
-    
