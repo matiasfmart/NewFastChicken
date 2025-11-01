@@ -1,10 +1,9 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { Combo, InventoryItem, OrderItem, DiscountRule } from '@/lib/types';
 import { useOrder } from '@/context/OrderContext';
-import { drinks as allDrinks, sides as allSides, products as allProducts } from '@/lib/data';
 import { format } from 'date-fns';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -16,15 +15,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertCircle, Flame } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface CustomizationDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  item: Combo | InventoryItem;
-}
-
-// All individual items that can be part of a combo
-const allComboItems = [...allProducts, ...allSides, ...allDrinks];
+import { useFirestore } from '@/hooks/use-firebase';
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { collection } from 'firebase/firestore';
 
 const getActiveDiscount = (combo: Combo): { rule: DiscountRule, percentage: number} | null => {
     if (!combo.discounts || combo.discounts.length === 0) return null;
@@ -44,9 +37,13 @@ const getActiveDiscount = (combo: Combo): { rule: DiscountRule, percentage: numb
     return null;
 }
 
-export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDialogProps) {
+export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean; onClose: () => void; item: Combo | InventoryItem; }) {
   const { addItemToOrder, getInventoryStock } = useOrder();
   const { toast } = useToast();
+  const firestore = useFirestore();
+
+  const [productsCollection] = useCollection(firestore ? collection(firestore, 'inventory') : null);
+  const allInventory = useMemo(() => productsCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [], [productsCollection]);
 
   const isCombo = 'products' in item;
   const combo = isCombo ? (item as Combo) : null;
@@ -57,27 +54,40 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
   const [withIce, setWithIce] = useState(true);
   const [isSpicy, setIsSpicy] = useState(false);
 
-  // This logic is now simplified. If a combo allows customization, it will be based on what's defined in the combo.
-  // For old combos ('any'), we provide a fallback. For new ones, it should be specific.
+  useEffect(() => {
+    // Reset state when item changes
+    setSelectedProductId(null);
+    setSelectedDrinkId(null);
+    setSelectedSideId(null);
+    setWithIce(true);
+    setIsSpicy(false);
+  }, [item]);
+
+
   const { availableProducts, availableDrinks, availableSides } = useMemo(() => {
-    if (!combo) return { availableProducts: [], availableDrinks: [], availableSides: [] };
+    if (!combo || allInventory.length === 0) return { availableProducts: [], availableDrinks: [], availableSides: [] };
     
-    const comboProductItems = combo.products.map(p => allComboItems.find(i => i.id === p.productId)).filter(Boolean) as InventoryItem[];
+    const comboProductItems = combo.products.map(p => allInventory.find(i => i.id === p.productId)).filter(Boolean) as InventoryItem[];
     
+    const products = comboProductItems.filter(i => i.type === 'product');
+    // Set default product if only one option
+    if (products.length === 1) setSelectedProductId(products[0].id);
+
     return {
-      availableProducts: comboProductItems.filter(i => i.type === 'product'),
+      availableProducts: products,
       availableDrinks: comboProductItems.filter(i => i.type === 'drink'),
       availableSides: comboProductItems.filter(i => i.type === 'side'),
     }
-  }, [combo]);
+  }, [combo, allInventory]);
 
   // Special handling for old generic drink/side combos
   const genericDrinkType = combo?.type === 'E' ? (combo.id === 'D' ? 'chica' : 'grande') : null;
-  const genericDrinks = useMemo(() => genericDrinkType ? allDrinks.filter(d => d.category === genericDrinkType) : [], [genericDrinkType]);
+  const allDrinks = useMemo(() => allInventory.filter(i => i.type === 'drink'), [allInventory]);
+  const genericDrinks = useMemo(() => genericDrinkType ? allDrinks.filter(d => d.category === genericDrinkType) : [], [genericDrinkType, allDrinks]);
 
 
   const handleSubmit = () => {
-    if(!combo) { // Should not happen
+    if(!combo) {
         onClose();
         return;
     }
@@ -85,6 +95,10 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
     const isGenericDrinkCombo = combo.type === 'E';
 
     // Validations
+    if (availableProducts.length > 0 && !selectedProductId) {
+        toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione un producto principal.' });
+        return;
+    }
     if(availableDrinks.length > 0 && !selectedDrinkId) {
         toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione una bebida.' });
         return;
@@ -98,12 +112,11 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
         return;
     }
     
-    const selectedProduct = allProducts.find(p => p.id === selectedProductId);
-    const selectedDrink = allDrinks.find(d => d.id === selectedDrinkId);
-    const selectedSide = allSides.find(s => s.id === selectedSideId);
+    const selectedProduct = allInventory.find(p => p.id === selectedProductId);
+    const selectedDrink = allInventory.find(d => d.id === selectedDrinkId);
+    const selectedSide = allInventory.find(s => s.id === selectedSideId);
 
     let price = combo.price;
-    // If it's a generic drink combo, the price is the one for the selected drink
     if(isGenericDrinkCombo && selectedDrink){
         price = selectedDrink.price;
     }
@@ -135,15 +148,16 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
   
   const getStockStatus = (itemId: string) => {
       const stock = getInventoryStock(itemId);
+      if (stock === undefined) return null; // Still loading
       if (stock <= 0) return <span className="ml-2 text-xs text-destructive">(Sin Stock)</span>;
       if (stock < 10) return <span className="ml-2 text-xs text-yellow-600">(Stock bajo)</span>;
       return null;
   }
 
   const overallStockWarning = useMemo(() => {
-      if(!combo || !combo.products) return null;
+      if(!combo || !combo.products || allInventory.length === 0) return null;
       const lowStockItems = combo.products
-        .map(p => ({ item: allComboItems.find(i => i.id === p.productId), requiredQty: p.quantity }))
+        .map(p => ({ item: allInventory.find(i => i.id === p.productId), requiredQty: p.quantity }))
         .filter(data => data.item && getInventoryStock(data.item.id) < data.requiredQty)
         .map(data => data.item!.name)
         .filter(Boolean);
@@ -152,7 +166,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: CustomizationDial
           return `Atención: No hay stock suficiente para: ${lowStockItems.join(', ')}`;
       }
       return null;
-  }, [combo, getInventoryStock])
+  }, [combo, getInventoryStock, allInventory])
 
   const renderOptions = (title: string, items: InventoryItem[], selectedId: string | null, onSelect: (id: string) => void) => (
     items.length > 0 && <div className="space-y-2">

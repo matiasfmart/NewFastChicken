@@ -51,11 +51,13 @@ const TicketLayout = ({ order, isKitchen }: { order: Order; isKitchen: boolean }
     </div>
   )
 
+  const orderId = typeof order.id === 'string' ? order.id.substring(0, 6).toUpperCase() : order.id.toString().padStart(6, '0');
+
   return (
     <div className="w-full max-w-sm mx-auto bg-white text-black p-4 font-mono">
       <div className="text-center space-y-2">
         {!isKitchen && <FastChickenLogo className="justify-center" />}
-        <h2 className="text-xl font-bold">{isKitchen ? 'COCINA' : `ORDEN #${order.id.toString().padStart(6, '0')}`}</h2>
+        <h2 className="text-xl font-bold">{isKitchen ? 'COCINA' : `ORDEN #${orderId}`}</h2>
       </div>
       <Separator className="my-2 border-dashed border-black" />
       <div className="space-y-2">

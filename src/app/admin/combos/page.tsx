@@ -1,14 +1,13 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { combos as initialCombos, products, sides, drinks } from "@/lib/data";
 import { MoreHorizontal, PlusCircle, Trash2, Tag, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { Combo, ComboProduct, DiscountRule, DiscountRuleType } from '@/lib/types';
+import type { Combo, ComboProduct, DiscountRule, DiscountRuleType, InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -21,8 +20,10 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-
-const allInventory = [...products, ...sides, ...drinks];
+import { useFirestore } from '@/hooks/use-firebase';
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -112,7 +113,8 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     )
 }
 
-function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void }) {
+
+function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => void, onCancel: () => void, inventoryItems: InventoryItem[] }) {
   const [formData, setFormData] = useState<Partial<Combo> | null>(null);
   const [isRuleFormOpen, setRuleFormOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
@@ -160,7 +162,8 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
   };
   
   const addProduct = () => {
-    const newProduct: ComboProduct = { productId: allInventory[0].id, quantity: 1 };
+    if (inventoryItems.length === 0) return;
+    const newProduct: ComboProduct = { productId: inventoryItems[0].id, quantity: 1 };
     setFormData(prev => prev ? ({ ...prev, products: [...(prev.products || []), newProduct] }) : null);
   };
 
@@ -236,7 +239,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                                         <SelectValue placeholder="Seleccione un producto" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {allInventory.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                                        {inventoryItems.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                 <Input
@@ -254,7 +257,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
                     </div>
                 </div>
                 <div className="space-y-4">
-                    <div className="flex justify-between items-center mb-2">
+                     <div className="flex justify-between items-center mb-2">
                         <Label>Reglas de Descuento</Label>
                         <Button type="button" size="sm" variant="outline" onClick={() => openRuleForm({})}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
                     </div>
@@ -298,22 +301,32 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
   );
 }
 
+
 export default function CombosPage() {
-  const [combos, setCombos] = useState<Combo[]>(initialCombos.filter(c => ['PO', 'BG', 'E'].includes(c.type)));
-  
+  const firestore = useFirestore();
+
+  const [combosCollection, combosLoading] = useCollection(
+    firestore ? collection(firestore, 'combos') : null
+  );
+  const [inventoryCollection, inventoryLoading] = useCollection(
+    firestore ? collection(firestore, 'inventory') : null
+  );
+
   const [isFormOpen, setFormOpen] = useState(false);
   const [editingCombo, setEditingCombo] = useState<Partial<Combo> | null>(null);
 
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [deletingComboId, setDeletingComboId] = useState<string | null>(null);
 
+  const combos = useMemo(() => combosCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Combo)) || [], [combosCollection]);
+  const inventoryItems = useMemo(() => inventoryCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [], [inventoryCollection]);
+
   const openCreateForm = () => {
     setEditingCombo({
-      id: `C${Date.now()}`,
       name: '',
       description: '',
       price: 0,
-      type: 'BG',
+      type: 'BG', // Default type, can be changed
       products: [],
       discounts: [],
     });
@@ -325,17 +338,16 @@ export default function CombosPage() {
     setFormOpen(true);
   };
   
-  const handleSaveCombo = (comboData: Partial<Combo>) => {
-    setCombos(prev => {
-        const existingIndex = prev.findIndex(c => c.id === comboData.id);
-        if (existingIndex > -1) {
-            const updatedCombos = [...prev];
-            updatedCombos[existingIndex] = { ...updatedCombos[existingIndex], ...comboData } as Combo;
-            return updatedCombos;
-        } else {
-            return [...prev, comboData as Combo];
-        }
-    });
+  const handleSaveCombo = async (comboData: Partial<Combo>) => {
+    if (!firestore) return;
+    const { id, ...data } = comboData;
+    
+    if (id) {
+        await updateDoc(doc(firestore, 'combos', id), data);
+    } else {
+        await addDoc(collection(firestore, 'combos'), data);
+    }
+    
     setFormOpen(false);
     setEditingCombo(null);
   }
@@ -345,9 +357,9 @@ export default function CombosPage() {
     setDeleteAlertOpen(true);
   };
 
-  const handleDelete = () => {
-    if (deletingComboId) {
-      setCombos(prev => prev.filter(c => c.id !== deletingComboId));
+  const handleDelete = async () => {
+    if (deletingComboId && firestore) {
+      await deleteDoc(doc(firestore, 'combos', deletingComboId));
       setDeleteAlertOpen(false);
       setDeletingComboId(null);
     }
@@ -371,6 +383,8 @@ export default function CombosPage() {
     }
     return `${rule.percentage}%`;
   }
+  
+  const isLoading = combosLoading || inventoryLoading;
 
   return (
     <>
@@ -383,58 +397,66 @@ export default function CombosPage() {
         <div className="mb-4 text-right">
             <Button onClick={openCreateForm}>Crear Nuevo Combo</Button>
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Productos</TableHead>
-              <TableHead>Precio Base</TableHead>
-              <TableHead>Descuentos</TableHead>
-              <TableHead>
-                <span className="sr-only">Acciones</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {combos.map((combo) => (
-              <TableRow key={combo.id}>
-                <TableCell className="font-medium">{combo.name}</TableCell>
-                <TableCell>
-                    <div className="flex flex-col">
-                        {combo.products?.map(p => (
-                            <span key={p.productId} className="text-xs text-muted-foreground">
-                                {p.quantity}x {allInventory.find(i => i.id === p.productId)?.name || p.productId}
-                            </span>
-                        ))}
-                    </div>
-                </TableCell>
-                <TableCell>${combo.price.toLocaleString('es-AR')}</TableCell>
-                <TableCell>
-                    <div className="flex flex-col gap-1">
-                        {combo.discounts?.map(d => (
-                            <Badge key={d.id} variant="secondary">{getDiscountDisplay(d)}</Badge>
-                        ))}
-                    </div>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button aria-haspopup="true" size="icon" variant="ghost">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => openEditForm(combo)}>Editar</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => confirmDelete(combo.id)} className="text-destructive">Eliminar</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        {isLoading ? (
+            <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+            </div>
+        ) : (
+            <Table>
+            <TableHeader>
+                <TableRow>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Productos</TableHead>
+                <TableHead>Precio Base</TableHead>
+                <TableHead>Descuentos</TableHead>
+                <TableHead>
+                    <span className="sr-only">Acciones</span>
+                </TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {combos.map((combo) => (
+                <TableRow key={combo.id}>
+                    <TableCell className="font-medium">{combo.name}</TableCell>
+                    <TableCell>
+                        <div className="flex flex-col">
+                            {combo.products?.map(p => (
+                                <span key={p.productId} className="text-xs text-muted-foreground">
+                                    {p.quantity}x {inventoryItems.find(i => i.id === p.productId)?.name || p.productId}
+                                </span>
+                            ))}
+                        </div>
+                    </TableCell>
+                    <TableCell>${combo.price.toLocaleString('es-AR')}</TableCell>
+                    <TableCell>
+                        <div className="flex flex-col gap-1">
+                            {combo.discounts?.map(d => (
+                                <Badge key={d.id} variant="secondary">{getDiscountDisplay(d)}</Badge>
+                            ))}
+                        </div>
+                    </TableCell>
+                    <TableCell>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => openEditForm(combo)}>Editar</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => confirmDelete(combo.id)} className="text-destructive">Eliminar</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    </TableCell>
+                </TableRow>
+                ))}
+            </TableBody>
+            </Table>
+        )}
       </CardContent>
     </Card>
 
@@ -443,6 +465,7 @@ export default function CombosPage() {
           combo={editingCombo}
           onSave={handleSaveCombo}
           onCancel={handleCloseForms}
+          inventoryItems={inventoryItems}
         />
     )}
 
@@ -463,3 +486,5 @@ export default function CombosPage() {
     </>
   );
 }
+
+    

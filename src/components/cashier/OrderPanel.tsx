@@ -20,8 +20,8 @@ export function OrderPanel() {
   const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
   const discount = subtotal - total;
 
-  const handleFinalize = () => {
-    const order = finalizeOrder();
+  const handleFinalize = async () => {
+    const order = await finalizeOrder();
     if(order) {
         setFinalizedOrder(order);
     }
@@ -29,7 +29,7 @@ export function OrderPanel() {
 
   const handleCloseCheckout = () => {
     setFinalizedOrder(null);
-    clearOrder();
+    // Order is cleared inside context now
   }
 
   return (

@@ -1,6 +1,10 @@
 
 import type { InventoryItem, Combo } from './types';
 
+// THIS FILE IS NOW DEPRECATED FOR MOST OF THE APP.
+// DATA IS FETCHED FROM FIRESTORE.
+// It's kept for reference and potential fallbacks.
+
 export const products: InventoryItem[] = [
   { id: 'p1', type: 'product', name: 'Pata de pollo', price: 800, stock: 100 },
   { id: 'p2', type: 'product', name: 'Pechuga', price: 1000, stock: 80 },
@@ -89,3 +93,5 @@ export const combos: Combo[] = [
     products: [],
   }
 ];
+
+    

@@ -1,4 +1,6 @@
 
+import type { Timestamp } from 'firebase/firestore';
+
 export type InventoryCategory = 'product' | 'drink' | 'side';
 
 export interface InventoryItem {
@@ -26,7 +28,7 @@ export interface DiscountRule {
 
 export interface Combo {
   id: string;
-  type: 'PO' | 'BG' | 'E' | 'ES' | 'EP'; // Main category, can be deprecated if we use items
+  type: 'PO' | 'BG' | 'E' | 'ES' | 'EP'; // Main category
   name: string;
   description: string;
   price: number;
@@ -56,13 +58,13 @@ export interface OrderItem {
 export type DeliveryType = 'local' | 'takeaway' | 'delivery';
 
 export interface Order {
-  id: number;
+  id: number | string;
   items: OrderItem[];
   deliveryType: DeliveryType;
   subtotal: number;
   discount: number;
   total: number;
-  createdAt: Date;
+  createdAt: Date | Timestamp;
 }
 
 export interface Shift {
@@ -72,3 +74,5 @@ export interface Shift {
     orders: Order[];
     totalRevenue: number;
 }
+
+    

@@ -1,32 +1,41 @@
+
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { combos, products, drinks, sides } from '@/lib/data';
 import type { Combo, InventoryItem } from '@/lib/types';
 import { MenuItemCard } from './MenuItemCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useFirestore } from '@/hooks/use-firebase';
+import { useCollection } from 'react-firebase-hooks/firestore';
+import { collection } from 'firebase/firestore';
+import { Skeleton } from '../ui/skeleton';
 
-interface MenuCatalogProps {
-  onSelectItem: (item: Combo | InventoryItem) => void;
-}
 
-const allMenuItems = [
-    ...combos,
-    ...products.filter(p => !combos.some(c => c.type === 'EP' && c.id.includes(p.id))),
-    ...drinks.filter(d => !combos.some(c => c.type === 'E' && c.id.includes(d.category || ''))),
-    ...sides.filter(s => !combos.some(c => c.type === 'ES' && c.id.includes(s.id))),
-];
+export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | InventoryItem) => void; }) {
+  const firestore = useFirestore();
+  const [combosCollection, combosLoading] = useCollection(firestore ? collection(firestore, 'combos') : null);
+  const [inventoryCollection, inventoryLoading] = useCollection(firestore ? collection(firestore, 'inventory') : null);
 
-export function MenuCatalog({ onSelectItem }: MenuCatalogProps) {
+  const combos = useMemo(() => combosCollection?.docs.map(d => ({ ...d.data(), id: d.id } as Combo)) || [], [combosCollection]);
+  const inventory = useMemo(() => inventoryCollection?.docs.map(d => ({ ...d.data(), id: d.id } as InventoryItem)) || [], [inventoryCollection]);
+  
+  const { products, drinks, sides } = useMemo(() => {
+    return {
+        products: inventory.filter(i => i.type === 'product'),
+        drinks: inventory.filter(i => i.type === 'drink'),
+        sides: inventory.filter(i => i.type === 'side'),
+    }
+  }, [inventory]);
+
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) return { combos, products, drinks, sides };
     const lowercasedFilter = searchTerm.toLowerCase();
     
-    const filter = (items: (Combo | InventoryItem)[]) => items.filter(item => item.name.toLowerCase().includes(lowercasedFilter));
+    const filter = <T extends {name: string}>(items: T[]) => items.filter(item => item.name.toLowerCase().includes(lowercasedFilter));
 
     return {
       combos: filter(combos),
@@ -34,15 +43,27 @@ export function MenuCatalog({ onSelectItem }: MenuCatalogProps) {
       drinks: filter(drinks),
       sides: filter(sides),
     };
-  }, [searchTerm]);
+  }, [searchTerm, combos, products, drinks, sides]);
+  
+  const isLoading = combosLoading || inventoryLoading;
 
-  const renderGrid = (items: (Combo | InventoryItem)[]) => (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {items.map(item => (
-        <MenuItemCard key={item.id} item={item} onSelect={() => onSelectItem(item)} />
-      ))}
-    </div>
-  );
+  const renderGrid = (items: (Combo | InventoryItem)[]) => {
+      if (isLoading) {
+          return (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}
+            </div>
+          )
+      }
+
+      return (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {items.map(item => (
+            <MenuItemCard key={item.id} item={item} onSelect={() => onSelectItem(item)} />
+        ))}
+        </div>
+      )
+  };
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -66,10 +87,10 @@ export function MenuCatalog({ onSelectItem }: MenuCatalogProps) {
                 {renderGrid(filteredItems.combos)}
             </TabsContent>
             <TabsContent value="products" className="p-1 pt-4">
-                {renderGrid(filteredItems.products.filter(p => !combos.some(c => c.type === 'EP' && c.id.includes(p.id))))}
+                {renderGrid(filteredItems.products)}
             </TabsContent>
             <TabsContent value="sides" className="p-1 pt-4">
-                {renderGrid(filteredItems.sides.filter(s => !combos.some(c => c.type === 'ES' && c.id.includes(s.id))))}
+                {renderGrid(filteredItems.sides)}
             </TabsContent>
             <TabsContent value="drinks" className="p-1 pt-4">
                 {renderGrid(filteredItems.drinks)}
@@ -79,3 +100,5 @@ export function MenuCatalog({ onSelectItem }: MenuCatalogProps) {
     </div>
   );
 }
+
+    

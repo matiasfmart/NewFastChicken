@@ -1,11 +1,14 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Activity, CreditCard, DollarSign, Users } from "lucide-react";
+import { Activity, CreditCard, DollarSign, Users, Package } from "lucide-react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { combos as allCombos } from "@/lib/data";
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFirestore } from '@/hooks/use-firebase';
+import { collection, query, where, Timestamp } from 'firebase/firestore';
+import { useCollection } from 'react-firebase-hooks/firestore';
+import type { Order, InventoryItem, Combo } from '@/lib/types';
 
 const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
@@ -22,29 +25,62 @@ type ChartData = {
 }
 
 export default function AdminDashboardPage() {
-  const [comboSalesData, setComboSalesData] = useState<ComboSaleData[]>([]);
-  const [totalSales, setTotalSales] = useState(0);
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [topSeller, setTopSeller] = useState<ComboSaleData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const firestore = useFirestore();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  useEffect(() => {
-    // Generate random data only on the client side
-    const generatedData = allCombos.map(combo => {
-        const sales = Math.floor(Math.random() * 200) + 50;
+  const [ordersCollection, ordersLoading] = useCollection(
+      firestore ? query(collection(firestore, 'orders'), where('createdAt', '>=', Timestamp.fromDate(today)), where('createdAt', '<', Timestamp.fromDate(tomorrow))) : null
+  );
+
+  const [combosCollection, combosLoading] = useCollection(
+      firestore ? collection(firestore, 'combos') : null
+  );
+  
+  const [inventoryCollection, inventoryLoading] = useCollection(
+      firestore ? collection(firestore, 'inventory') : null
+  );
+
+  const orders = useMemo(() => ordersCollection?.docs.map(d => ({...d.data(), id: d.id, createdAt: d.data().createdAt.toDate() } as Order)) || [], [ordersCollection]);
+  const combos = useMemo(() => combosCollection?.docs.map(d => ({...d.data(), id: d.id } as Combo)) || [], [combosCollection]);
+  const inventory = useMemo(() => inventoryCollection?.docs.map(d => ({...d.data(), id: d.id } as InventoryItem)) || [], [inventoryCollection]);
+
+  const { comboSalesData, totalSales, totalRevenue, chartData, topSeller } = useMemo(() => {
+    if (ordersLoading || combosLoading) return { comboSalesData: [], totalSales: 0, totalRevenue: 0, chartData: [], topSeller: null };
+
+    const salesMap = new Map<string, { sales: number, revenue: number }>();
+
+    for(const order of orders) {
+        for(const item of order.items) {
+            const comboId = item.combo.id;
+            const current = salesMap.get(comboId) || { sales: 0, revenue: 0 };
+            current.sales += item.quantity;
+            current.revenue += item.finalUnitPrice * item.quantity;
+            salesMap.set(comboId, current);
+        }
+    }
+    
+    const comboDetails = combos.reduce((acc, combo) => {
+        acc[combo.id] = combo;
+        return acc;
+    }, {} as Record<string, Combo>);
+
+    const data: ComboSaleData[] = Array.from(salesMap.entries()).map(([comboId, data]) => {
+        const combo = comboDetails[comboId];
         return {
-            name: combo.name,
-            type: combo.type === 'PO' ? 'Pollo' : (combo.type === 'BG' ? 'Hamburguesa' : (['E', 'ES', 'EP'].includes(combo.type) ? 'Individual' : 'Otro')),
-            sales: sales,
-            revenue: combo.price * sales
+            name: combo?.name || 'Combo Desconocido',
+            type: combo?.type === 'PO' ? 'Pollo' : (combo?.type === 'BG' ? 'Hamburguesa' : (['E', 'ES', 'EP'].includes(combo?.type || '') ? 'Individual' : 'Otro')),
+            sales: data.sales,
+            revenue: data.revenue
         };
     });
 
-    const totalGeneratedSales = generatedData.reduce((sum, item) => sum + item.sales, 0);
-    const totalGeneratedRevenue = generatedData.reduce((sum, item) => sum + item.revenue, 0);
+    const totalGeneratedSales = data.reduce((sum, item) => sum + item.sales, 0);
+    const totalGeneratedRevenue = data.reduce((sum, item) => sum + item.revenue, 0);
 
-    const salesByType = generatedData.reduce((acc, item) => {
+    const salesByType = data.reduce((acc, item) => {
         acc[item.type] = (acc[item.type] || 0) + item.sales;
         return acc;
     }, {} as Record<string, number>);
@@ -54,20 +90,26 @@ export default function AdminDashboardPage() {
         value: salesByType[type]
     }));
 
-    const generatedTopSeller = [...generatedData].sort((a,b) => b.sales - a.sales)[0];
+    const generatedTopSeller = [...data].sort((a,b) => b.sales - a.sales)[0] || null;
 
-    setComboSalesData(generatedData);
-    setTotalSales(totalGeneratedSales);
-    setTotalRevenue(totalGeneratedRevenue);
-    setChartData(generatedChartData);
-    setTopSeller(generatedTopSeller);
-    setIsLoading(false);
-  }, []); // Empty dependency array ensures this runs only once on the client
+    return {
+        comboSalesData: data,
+        totalSales: totalGeneratedSales,
+        totalRevenue: totalGeneratedRevenue,
+        chartData: generatedChartData,
+        topSeller: generatedTopSeller
+    }
+
+  }, [orders, combos, ordersLoading, combosLoading]);
+
+  const lowStockItems = useMemo(() => inventory.filter(item => item.stock < 10).sort((a, b) => a.stock - b.stock), [inventory]);
+
+  const isLoading = ordersLoading || combosLoading || inventoryLoading;
 
   if (isLoading) {
       return (
         <div className="flex flex-col gap-4">
-            <Skeleton className="h-8 w-64" />
+            <h1 className="text-2xl font-bold tracking-tight">Bienvenido, Administrador</h1>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <Card><CardHeader><Skeleton className="h-5 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/2" /><Skeleton className="h-4 w-1/3 mt-1" /></CardContent></Card>
                 <Card><CardHeader><Skeleton className="h-5 w-2/3" /></CardHeader><CardContent><Skeleton className="h-8 w-1/2" /><Skeleton className="h-4 w-1/3 mt-1" /></CardContent></Card>
@@ -93,45 +135,45 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">${totalRevenue.toLocaleString('es-AR')}</div>
-              <p className="text-xs text-muted-foreground">+20.1% desde ayer</p>
+              {/* <p className="text-xs text-muted-foreground">+20.1% desde ayer</p> */}
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pedidos</CardTitle>
+              <CardTitle className="text-sm font-medium">Pedidos (Hoy)</CardTitle>
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">+{totalSales}</div>
-              <p className="text-xs text-muted-foreground">+180.1% desde el mes pasado</p>
+              <div className="text-2xl font-bold">+{orders.length}</div>
+               {/* <p className="text-xs text-muted-foreground">+180.1% desde el mes pasado</p> */}
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Item más vendido</CardTitle>
+              <CardTitle className="text-sm font-medium">Item más vendido (Hoy)</CardTitle>
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{topSeller?.name}</div>
-              <p className="text-xs text-muted-foreground">{topSeller?.sales} vendidos hoy</p>
+              <div className="text-2xl font-bold">{topSeller?.name || 'N/A'}</div>
+              <p className="text-xs text-muted-foreground">{topSeller?.sales || 0} vendidos hoy</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Stock bajo</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <Package className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3 items</div>
-              <p className="text-xs text-muted-foreground">Papas fritas, Coca Cola, Alitas</p>
+              <div className="text-2xl font-bold">{lowStockItems.length} items</div>
+              <p className="text-xs text-muted-foreground truncate" title={lowStockItems.map(i => i.name).join(', ')}>{lowStockItems.map(i => i.name).join(', ')}</p>
             </CardContent>
           </Card>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
             <Card className="lg:col-span-4">
                 <CardHeader>
-                    <CardTitle>Ventas por Combo</CardTitle>
-                    <CardDescription>Resumen de ventas para cada combo.</CardDescription>
+                    <CardTitle>Ventas por Combo (Hoy)</CardTitle>
+                    <CardDescription>Resumen de ventas para cada combo en el día.</CardDescription>
                 </CardHeader>
                 <CardContent className="max-h-96 overflow-y-auto">
                     <Table>
@@ -149,7 +191,7 @@ export default function AdminDashboardPage() {
                                     <TableCell>{item.name}</TableCell>
                                     <TableCell className="text-right">{item.sales}</TableCell>
                                     <TableCell className="text-right">${item.revenue.toLocaleString('es-AR')}</TableCell>
-                                    <TableCell className="text-right">{((item.sales / totalSales) * 100).toFixed(1)}%</TableCell>
+                                    <TableCell className="text-right">{totalSales > 0 ? ((item.sales / totalSales) * 100).toFixed(1) : 0}%</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -158,7 +200,7 @@ export default function AdminDashboardPage() {
             </Card>
             <Card className="lg:col-span-3">
                  <CardHeader>
-                    <CardTitle>Ventas por Categoría</CardTitle>
+                    <CardTitle>Ventas por Categoría (Hoy)</CardTitle>
                     <CardDescription>Distribución de ventas por tipo de producto.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -169,7 +211,7 @@ export default function AdminDashboardPage() {
                                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                 ))}
                             </Pie>
-                            <Tooltip formatter={(value, name) => [`${((value as number / totalSales) * 100).toFixed(1)}%`, name]}/>
+                            <Tooltip formatter={(value) => [`${totalSales > 0 ? ((value as number / totalSales) * 100).toFixed(1) : 0}%`, 'Porcentaje']}/>
                             <Legend />
                         </PieChart>
                     </ResponsiveContainer>
@@ -179,3 +221,5 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+    
