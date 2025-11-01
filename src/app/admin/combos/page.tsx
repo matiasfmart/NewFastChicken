@@ -30,7 +30,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
     const [type, setType] = useState<DiscountRuleType>(rule?.type || 'weekday');
     const [value, setValue] = useState(rule?.value || '0');
     const [percentage, setPercentage] = useState(rule?.percentage || 10);
-    const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' && rule.value ? new Date(rule.value) : undefined);
+    const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' && rule.value ? new Date(rule.value) : new Date());
 
     const handleSave = () => {
         const finalValue = type === 'date' ? format(date!, 'yyyy-MM-dd') : value;
@@ -66,30 +66,15 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
                         </div>
                     )}
                     {type === 'date' && (
-                        <div className="space-y-2">
-                            <Label>Fecha</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !date && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date ? format(date, "PPP") : <span>Elija una fecha</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={date}
-                                    onSelect={setDate}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
+                        <div className="space-y-2 flex flex-col items-center">
+                            <Label className="w-full">Fecha</Label>
+                             <Calendar
+                                mode="single"
+                                selected={date}
+                                onSelect={setDate}
+                                className="rounded-md border"
+                                initialFocus
+                              />
                         </div>
                     )}
                     <div className="space-y-2">
@@ -456,5 +441,3 @@ export default function CombosPage() {
     </>
   );
 }
-
-    
