@@ -19,6 +19,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 const allInventory = [...products, ...sides, ...drinks];
 
@@ -64,15 +66,30 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
                         </div>
                     )}
                     {type === 'date' && (
-                         <div className="space-y-2 flex flex-col items-center">
-                            <Label className="self-start">Fecha</Label>
-                             <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={setDate}
-                                className="rounded-md border"
-                                initialFocus
-                            />
+                        <div className="space-y-2">
+                            <Label>Fecha</Label>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date ? format(date, "PPP") : <span>Elija una fecha</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={setDate}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     )}
                     <div className="space-y-2">
@@ -439,5 +456,3 @@ export default function CombosPage() {
     </>
   );
 }
-
-    
