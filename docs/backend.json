@@ -1,0 +1,168 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile in the system.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "photoURL": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the user's profile picture."
+        }
+      },
+      "required": ["displayName", "email"]
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "Represents an item in the inventory, such as a product, drink, or side.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the inventory item."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the item."
+        },
+        "stock": {
+          "type": "number",
+          "description": "Current stock quantity."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["product", "drink", "side"],
+          "description": "The type of the inventory item."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["chica", "grande"],
+          "description": "Category for drinks (e.g., small, large)."
+        }
+      },
+      "required": ["name", "price", "stock", "type"]
+    },
+    "Combo": {
+      "title": "Combo",
+      "description": "Represents a menu combo, which includes multiple inventory items.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "products": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            },
+            "required": ["productId", "quantity"]
+          }
+        },
+        "discounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["weekday", "date"]
+              },
+              "value": {
+                "type": "string"
+              },
+              "percentage": {
+                "type": "number"
+              }
+            },
+            "required": ["type", "value", "percentage"]
+          }
+        }
+      },
+      "required": ["name", "price", "products"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Represents a customer's order.",
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {}
+          }
+        },
+        "deliveryType": {
+          "type": "string",
+          "enum": ["local", "takeaway", "delivery"]
+        },
+        "subtotal": {
+          "type": "number"
+        },
+        "discount": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["items", "deliveryType", "total", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["anonymous"]
+  },
+  "firestore": {
+    "/inventory": {
+      "schema": {
+        "$ref": "#/entities/InventoryItem"
+      },
+      "description": "Collection of all inventory items."
+    },
+    "/combos": {
+      "schema": {
+        "$ref": "#/entities/Combo"
+      },
+      "description": "Collection of all available combos."
+    },
+    "/orders": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "Collection of all customer orders."
+    },
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "A user's profile document."
+    }
+  }
+}
