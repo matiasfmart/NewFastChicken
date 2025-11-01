@@ -16,9 +16,9 @@ interface InventoryTabsProps {
 
 const InventoryTable = ({ items, categoryName }: { items: InventoryItem[], categoryName: string }) => (
     <>
-        <div className="text-right mb-4">
+        {/* <div className="text-right mb-4">
             <Button>Añadir {categoryName}</Button>
-        </div>
+        </div> */}
         <Table>
             <TableHeader>
                 <TableRow>
@@ -26,9 +26,9 @@ const InventoryTable = ({ items, categoryName }: { items: InventoryItem[], categ
                 {categoryName === 'Bebidas' && <TableHead>Categoría</TableHead>}
                 <TableHead>Stock</TableHead>
                 <TableHead>Precio</TableHead>
-                <TableHead>
+                {/* <TableHead>
                     <span className="sr-only">Acciones</span>
-                </TableHead>
+                </TableHead> */}
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -38,10 +38,10 @@ const InventoryTable = ({ items, categoryName }: { items: InventoryItem[], categ
                     {categoryName === 'Bebidas' && <TableCell><Badge variant="secondary">{item.category}</Badge></TableCell>}
                     <TableCell>{item.stock}</TableCell>
                     <TableCell>${item.price.toLocaleString('es-AR')}</TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
+                        <Button aria-haspopup="true" size="icon" variant="ghost" disabled>
                             <MoreHorizontal className="h-4 w-4" />
                             <span className="sr-only">Toggle menu</span>
                         </Button>
@@ -51,7 +51,7 @@ const InventoryTable = ({ items, categoryName }: { items: InventoryItem[], categ
                         <DropdownMenuItem>Editar</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    </TableCell>
+                    </TableCell> */}
                 </TableRow>
                 ))}
             </TableBody>
