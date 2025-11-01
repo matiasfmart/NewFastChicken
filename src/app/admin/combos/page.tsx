@@ -108,8 +108,7 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
 
 function ComboForm({ combo, onSave, onCancel, onOpenRuleForm }: { combo: Partial<Combo>, onSave: (combo: Partial<Combo>) => void, onCancel: () => void, onOpenRuleForm: (rule: Partial<DiscountRule>) => void }) {
   const [formData, setFormData] = useState<Partial<Combo>>(combo);
-  
-  // Sync state if the initial combo prop changes (e.g. from the parent)
+
   useEffect(() => {
     if(combo) {
         setFormData(combo);
@@ -176,15 +175,15 @@ function ComboForm({ combo, onSave, onCancel, onOpenRuleForm }: { combo: Partial
             <form id="combo-form" onSubmit={handleSubmit} className="p-1 pr-6 space-y-4">
             <div className="space-y-2">
                 <Label htmlFor="name">Nombre</Label>
-                <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+                <Input id="name" name="name" value={formData.name || ''} onChange={handleChange} required />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="description">Descripción</Label>
-                <Textarea id="description" name="description" value={formData.description} onChange={handleChange} required />
+                <Textarea id="description" name="description" value={formData.description || ''} onChange={handleChange} required />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="price">Precio Base</Label>
-                <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
+                <Input id="price" name="price" type="number" value={formData.price || 0} onChange={handleChange} required />
             </div>
 
             <div className="space-y-4">
@@ -277,7 +276,6 @@ export default function CombosPage() {
   };
 
   const openEditForm = (combo: Combo) => {
-    // Make a deep copy to avoid direct state mutation before saving
     setEditingCombo(JSON.parse(JSON.stringify(combo)));
     setActiveForm('combo');
   };
