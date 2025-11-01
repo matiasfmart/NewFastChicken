@@ -1,0 +1,66 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Home, Package, ShoppingCart, BarChart, LogOut, Settings } from "lucide-react";
+import { FastChickenLogo } from "../icons/FastChickenLogo";
+import { logout } from "@/lib/actions";
+
+const navItems = [
+    { href: "/admin/dashboard", icon: Home, label: "Dashboard" },
+    { href: "/admin/inventory", icon: Package, label: "Inventario" },
+    { href: "/admin/combos", icon: ShoppingCart, label: "Combos" },
+    { href: "/admin/forecasting", icon: BarChart, label: "Previsiones" },
+]
+
+export function AdminSidebar() {
+    const pathname = usePathname();
+
+  return (
+    <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-card sm:flex">
+      <TooltipProvider>
+        <nav className="flex flex-col items-center gap-4 px-2 py-4">
+            <Link
+                href="/"
+                className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
+                >
+                <FastChickenLogo className="!text-primary-foreground" />
+                <span className="sr-only">Fast Chicken</span>
+            </Link>
+            {navItems.map(item => (
+            <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                <Link
+                    href={item.href}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors md:h-8 md:w-8 ${
+                    pathname.startsWith(item.href)
+                        ? "bg-accent text-accent-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                >
+                    <item.icon className="h-5 w-5" />
+                    <span className="sr-only">{item.label}</span>
+                </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">{item.label}</TooltipContent>
+            </Tooltip>
+            ))}
+        </nav>
+        <nav className="mt-auto flex flex-col items-center gap-4 px-2 py-4">
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <form action={logout}>
+                        <button type="submit" className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8">
+                            <LogOut className="h-5 w-5" />
+                            <span className="sr-only">Cerrar Sesión</span>
+                        </button>
+                    </form>
+                </TooltipTrigger>
+                <TooltipContent side="right">Cerrar Sesión</TooltipContent>
+            </Tooltip>
+        </nav>
+      </TooltipProvider>
+    </aside>
+  );
+}

@@ -1,0 +1,21 @@
+import { cn } from "@/lib/utils";
+
+export function FastChickenLogo({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex items-center gap-2 text-primary", className)}>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="h-8 w-8"
+      >
+        <path d="M19.648,6.42a1,1,0,0,0-1.124.89l-1.2,6.532a1,1,0,0,1-.976.858H15a1,1,0,0,1-1-1V12.7a1,1,0,0,0-1-1H9a1,1,0,0,0-1,1v5a1,1,0,0,1-1,1H5.666a1,1,0,0,1-.976-.858L3.486,7.31a1,1,0,1,0-1.972.238l1.2,10.374A3,3,0,0,0,5.666,21H7a3,3,0,0,0,3-3V13.7h2v1.6a3,3,0,0,0,3,3h1.348a3,3,0,0,0,2.928-2.574l1.2-6.532a1,1,0,0,0-.828-1.124Z" />
+        <path d="M12,10a3,3,0,1,0-3-3A3,3,0,0,0,12,10Zm0-4a1,1,0,1,1-1,1A1,1,0,0,1,12,6Z" />
+        <path d="M17,6a1,1,0,1,0,1,1A1,1,0,0,0,17,6Z" />
+      </svg>
+      <span className="font-headline text-2xl font-bold text-foreground">
+        Fast Chicken
+      </span>
+    </div>
+  );
+}
