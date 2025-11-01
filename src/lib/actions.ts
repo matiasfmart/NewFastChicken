@@ -4,16 +4,16 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { forecastStock as runForecastStock, type ForecastStockInput, type ForecastStockOutput } from "@/ai/flows/stock-forecasting";
 
-export async function login(formData: FormData) {
+export async function login(previousState: any, formData: FormData) {
   const user = formData.get("user");
   const password = formData.get("password");
 
   // In a real app, you'd validate against a database
   if (user === "admin" && password === "admin") {
     cookies().set("session", "admin-user", { httpOnly: true, path: "/" });
-    redirect("/admin/dashboard");
+    return { success: true, error: null };
   } else {
-    return { error: "Usuario o contraseña inválidos" };
+    return { success: false, error: "Usuario o contraseña inválidos" };
   }
 }
 

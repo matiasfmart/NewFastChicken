@@ -1,6 +1,7 @@
 "use client";
-import { useActionState } from "react";
+import React, { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
+import { useRouter } from "next/navigation";
 import { login } from "@/lib/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +17,14 @@ function SubmitButton() {
 }
 
 export default function LoginPage() {
-  const [state, formAction] = useActionState(login, undefined);
+  const router = useRouter();
+  const [state, formAction] = useActionState(login, { error: null, success: false });
+
+  useEffect(() => {
+    if (state.success) {
+      router.push('/admin/dashboard');
+    }
+  }, [state.success, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
