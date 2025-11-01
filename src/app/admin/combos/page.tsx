@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -66,15 +66,30 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
                         </div>
                     )}
                     {type === 'date' && (
-                        <div className="space-y-2 flex flex-col items-center">
-                            <Label className="w-full">Fecha</Label>
-                             <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={setDate}
-                                className="rounded-md border"
-                                initialFocus
-                              />
+                        <div className="space-y-2">
+                            <Label>Fecha</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {date ? format(date, "PPP") : <span>Elija una fecha</span>}
+                                </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                    mode="single"
+                                    selected={date}
+                                    onSelect={setDate}
+                                    initialFocus
+                                />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     )}
                     <div className="space-y-2">
@@ -98,7 +113,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
       name: '',
       description: '',
       price: 0,
-      type: 'BG', // Default type, can be changed
+      type: 'BG',
       products: [],
       discounts: [],
     }
@@ -106,6 +121,13 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
   
   const [isRuleFormOpen, setRuleFormOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
+
+  // Sync state if the initial combo prop changes (e.g. from the parent)
+  useEffect(() => {
+    if(combo) {
+        setFormData(combo);
+    }
+  }, [combo]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -151,7 +173,7 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
   }
 
   const openNewRuleForm = () => {
-      setEditingRule(null);
+      setEditingRule({});
       setRuleFormOpen(true);
   }
 
@@ -159,120 +181,126 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
       setEditingRule(rule);
       setRuleFormOpen(true);
   }
+  
+  const handleRuleFormCancel = () => {
+    setRuleFormOpen(false);
+    setEditingRule(null);
+  }
 
   const handleSaveRule = (rule: DiscountRule) => {
-      setFormData(prev => {
-          const discounts = prev.discounts || [];
-          const existing = discounts.find(d => d.id === rule.id);
-          if (existing) {
-              return {...prev, discounts: discounts.map(d => d.id === rule.id ? rule : d)}
-          }
-          return {...prev, discounts: [...discounts, rule]};
-      })
-      setRuleFormOpen(false);
-      setEditingRule(null);
+      const updatedFormData = { ...formData };
+      const discounts = updatedFormData.discounts || [];
+      const existing = discounts.find(d => d.id === rule.id);
+      if (existing) {
+        updatedFormData.discounts = discounts.map(d => d.id === rule.id ? rule : d)
+      } else {
+        updatedFormData.discounts = [...discounts, rule];
+      }
+      setFormData(updatedFormData);
+      handleRuleFormCancel();
   }
 
   const removeRule = (ruleId: string) => {
     setFormData(prev => ({...prev, discounts: prev.discounts?.filter(d => d.id !== ruleId)}));
   }
 
-  return (
-    <>
-        <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-        <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
-            <DialogHeader>
-            <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
-            <DialogDescription>
-                Complete los detalles, seleccione los productos y gestione los descuentos para el combo.
-            </DialogDescription>
-            </DialogHeader>
-            <ScrollArea className="overflow-auto -mx-6 px-6">
-                <form id="combo-form" onSubmit={handleSubmit} className="p-1 pr-6 space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="name">Nombre</Label>
-                    <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="description">Descripción</Label>
-                    <Textarea id="description" name="description" value={formData.description} onChange={handleChange} required />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="price">Precio Base</Label>
-                    <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
-                </div>
+  if (isRuleFormOpen) {
+    return (
+        <DiscountRuleForm 
+            rule={editingRule} 
+            onSave={handleSaveRule}
+            onCancel={handleRuleFormCancel}
+        />
+    )
+  }
 
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <Label>Productos del Combo</Label>
-                        <Button type="button" size="sm" variant="outline" onClick={addProduct}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
-                    </div>
-                    <div className="space-y-2">
-                        {formData.products?.map((p, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                                <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione un producto" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {allInventory.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <Input
-                                    type="number"
-                                    min="1"
-                                    value={p.quantity}
-                                    onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                                    className="w-20"
-                                />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => removeProduct(index)} className="text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
-                    </div>
+  return (
+    <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
+    <DialogContent className="sm:max-w-[625px] grid-rows-[auto_1fr_auto] max-h-[90vh]">
+        <DialogHeader>
+        <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
+        <DialogDescription>
+            Complete los detalles, seleccione los productos y gestione los descuentos para el combo.
+        </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="overflow-auto -mx-6 px-6">
+            <form id="combo-form" onSubmit={handleSubmit} className="p-1 pr-6 space-y-4">
+            <div className="space-y-2">
+                <Label htmlFor="name">Nombre</Label>
+                <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="description">Descripción</Label>
+                <Textarea id="description" name="description" value={formData.description} onChange={handleChange} required />
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="price">Precio Base</Label>
+                <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required />
+            </div>
+
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <Label>Productos del Combo</Label>
+                    <Button type="button" size="sm" variant="outline" onClick={addProduct}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
                 </div>
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center">
-                        <Label>Reglas de Descuento</Label>
-                        <Button type="button" size="sm" variant="outline" onClick={openNewRuleForm}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
-                    </div>
-                     <div className="space-y-2">
-                        {formData.discounts?.map((rule) => (
-                            <div key={rule.id} className="flex items-center gap-2 p-2 border rounded-md">
-                            <div className="flex-1">
-                                <p className="font-semibold">{rule.percentage}% OFF</p>
-                                <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
-                            </div>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => openEditRuleForm(rule)}>
-                                <Pencil className="h-4 w-4" />
-                            </Button>
-                             <Button type="button" variant="ghost" size="icon" onClick={() => removeRule(rule.id)} className="text-destructive">
+                <div className="space-y-2">
+                    {formData.products?.map((p, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                            <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccione un producto" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {allInventory.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Input
+                                type="number"
+                                min="1"
+                                value={p.quantity}
+                                onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
+                                className="w-20"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => removeProduct(index)} className="text-destructive">
                                 <Trash2 className="h-4 w-4" />
                             </Button>
-                            </div>
-                        ))}
-                        {(!formData.discounts || formData.discounts.length === 0) && (
-                            <p className="text-sm text-muted-foreground">No hay reglas de descuento para este combo.</p>
-                        )}
-                    </div>
+                        </div>
+                    ))}
                 </div>
-                </form>
-            </ScrollArea>
-            <DialogFooter>
-                <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" form="combo-form">Guardar Combo</Button>
-            </DialogFooter>
-        </DialogContent>
-        </Dialog>
-        {isRuleFormOpen && (
-            <DiscountRuleForm 
-                rule={editingRule} 
-                onSave={handleSaveRule}
-                onCancel={() => setRuleFormOpen(false)}
-            />
-        )}
-    </>
+            </div>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <Label>Reglas de Descuento</Label>
+                    <Button type="button" size="sm" variant="outline" onClick={openNewRuleForm}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
+                </div>
+                 <div className="space-y-2">
+                    {formData.discounts?.map((rule) => (
+                        <div key={rule.id} className="flex items-center gap-2 p-2 border rounded-md">
+                        <div className="flex-1">
+                            <p className="font-semibold">{rule.percentage}% OFF</p>
+                            <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
+                        </div>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => openEditRuleForm(rule)}>
+                            <Pencil className="h-4 w-4" />
+                        </Button>
+                         <Button type="button" variant="ghost" size="icon" onClick={() => removeRule(rule.id)} className="text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        </div>
+                    ))}
+                    {(!formData.discounts || formData.discounts.length === 0) && (
+                        <p className="text-sm text-muted-foreground">No hay reglas de descuento para este combo.</p>
+                    )}
+                </div>
+            </div>
+            </form>
+        </ScrollArea>
+        <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
+            <Button type="submit" form="combo-form">Guardar Combo</Button>
+        </DialogFooter>
+    </DialogContent>
+    </Dialog>
   );
 }
 
@@ -441,3 +469,5 @@ export default function CombosPage() {
     </>
   );
 }
+
+    
