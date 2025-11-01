@@ -19,17 +19,16 @@ interface InventoryTabsProps {
   drinks: InventoryItem[];
   sides: InventoryItem[];
   onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void;
-  onSaveItem: (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => void;
+  onSaveItem: (item: Partial<InventoryItem>) => Promise<void>;
 }
 
-const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: InventoryItem) => void, onCancel: () => void }) => {
+const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<InventoryItem> | null, categoryKey: 'products' | 'drinks' | 'sides', onSave: (item: Partial<InventoryItem>) => Promise<void>, onCancel: () => void }) => {
 
     const getBaseItem = (): Partial<InventoryItem> => {
         let type: 'product' | 'drink' | 'side' = 'product';
         if (categoryKey === 'drinks') type = 'drink';
         if (categoryKey === 'sides') type = 'side';
         return {
-            id: `new-${Date.now()}`,
             name: '',
             price: 0,
             stock: 0,
@@ -48,20 +47,17 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
         setData(prev => ({...prev, category: value as 'chica' | 'grande'}));
     }
     
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const dataToSave = { ...data };
-        if (dataToSave.id?.startsWith('new-')) {
-            delete dataToSave.id;
-        }
-        onSave(dataToSave as InventoryItem);
+        await onSave(data);
+        onCancel(); // Close form after saving
     }
 
     return (
-        <Dialog open={true} onOpenChange={onCancel}>
+        <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>{item?.id && !item.id.startsWith('new-') ? 'Editar' : 'Añadir'} Ítem</DialogTitle>
+                    <DialogTitle>{item?.id ? 'Editar' : 'Añadir'} Ítem</DialogTitle>
                     <DialogDescription>Completa la información del ítem de inventario.</DialogDescription>
                 </DialogHeader>
                 <form id="item-form" onSubmit={handleSubmit}>
@@ -105,7 +101,7 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
     )
 }
 
-const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSaveItem }: { items: InventoryItem[], categoryName: string, categoryKey: 'products' | 'drinks' | 'sides', onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void, onSaveItem: (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => void }) => {
+const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSaveItem }: { items: InventoryItem[], categoryName: string, categoryKey: 'products' | 'drinks' | 'sides', onDeleteItem: (id: string, category: 'products' | 'drinks' | 'sides') => void, onSaveItem: (item: Partial<InventoryItem>) => Promise<void> }) => {
 
     const [isFormOpen, setFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -120,8 +116,8 @@ const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSave
         setFormOpen(true);
     };
 
-    const handleSave = (item: InventoryItem) => {
-        onSaveItem(item, categoryKey);
+    const handleSave = async (item: Partial<InventoryItem>) => {
+        await onSaveItem(item);
         setFormOpen(false);
         setEditingItem(null);
     }
@@ -202,5 +198,3 @@ export function InventoryTabs({ products, drinks, sides, onDeleteItem, onSaveIte
     </Tabs>
   );
 }
-
-    

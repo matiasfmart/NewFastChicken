@@ -42,18 +42,18 @@ export default function InventoryPage() {
   }, [firestore]);
 
 
-  const handleSaveInventory = async (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
+  const handleSaveInventory = async (item: Partial<InventoryItem>) => {
     if (!firestore) return;
     const { id, ...data } = item;
     
     // The `id` is on the item if it's an existing one being edited. 
     // If it's a new item, the `item` object won't have an `id` property because we remove it before calling onSave.
     if (id) {
-      await updateInventoryItem(firestore, id, data);
+      await updateInventoryItem(firestore, id, data as Omit<InventoryItem, 'id'>);
     } else {
       await addInventoryItem(firestore, data as Omit<InventoryItem, 'id'>);
     }
-    fetchData(); // Refetch data after saving
+    await fetchData(); // Refetch data after saving
   }
 
   const confirmDeleteItem = (id: string, category: 'products' | 'drinks' | 'sides') => {
@@ -66,7 +66,7 @@ export default function InventoryPage() {
       await deleteInventoryItem(firestore, itemToDelete.id);
       setDeleteAlertOpen(false);
       setItemToDelete(null);
-      fetchData(); // Refetch data after deleting
+      await fetchData(); // Refetch data after deleting
     }
   };
 
