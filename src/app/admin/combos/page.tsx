@@ -66,31 +66,13 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
                         </div>
                     )}
                     {type === 'date' && (
-                        <div className="space-y-2">
-                            <Label>Fecha</Label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !date && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date ? format(date, "PPP") : <span>Elija una fecha</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={date}
-                                    onSelect={setDate}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
+                       <Calendar
+                            mode="single"
+                            selected={date}
+                            onSelect={setDate}
+                            className="rounded-md border"
+                            initialFocus
+                        />
                     )}
                     <div className="space-y-2">
                         <Label>Porcentaje de Descuento (%)</Label>
@@ -430,7 +412,7 @@ export default function CombosPage() {
         />
     )}
 
-    {activeForm === 'rule' && (
+    {activeForm === 'rule' && editingRule !== null && (
         <DiscountRuleForm 
             rule={editingRule} 
             onSave={handleSaveRule}
@@ -455,3 +437,5 @@ export default function CombosPage() {
     </>
   );
 }
+
+    
