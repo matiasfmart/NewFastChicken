@@ -16,10 +16,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
 const allInventory = [...products, ...sides, ...drinks];
@@ -28,7 +26,7 @@ const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes
 
 function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRule> | null, onSave: (rule: DiscountRule) => void, onCancel: () => void}) {
     const [type, setType] = useState<DiscountRuleType>(rule?.type || 'weekday');
-    const [value, setValue] = useState(rule?.value || '1');
+    const [value, setValue] = useState(rule?.value || '0');
     const [percentage, setPercentage] = useState(rule?.percentage || 10);
     const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' && rule.value ? new Date(rule.value) : undefined);
 
@@ -66,30 +64,15 @@ function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRu
                         </div>
                     )}
                     {type === 'date' && (
-                         <div className="space-y-2">
-                            <Label>Fecha</Label>
-                             <Popover>
-                                <PopoverTrigger asChild>
-                                <Button
-                                    variant={"outline"}
-                                    className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !date && "text-muted-foreground"
-                                    )}
-                                >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
-                                    {date ? format(date, "PPP") : <span>Seleccione una fecha</span>}
-                                </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                    mode="single"
-                                    selected={date}
-                                    onSelect={setDate}
-                                    initialFocus
-                                />
-                                </PopoverContent>
-                            </Popover>
+                         <div className="space-y-2 flex flex-col items-center">
+                            <Label className="self-start">Fecha</Label>
+                             <Calendar
+                                mode="single"
+                                selected={date}
+                                onSelect={setDate}
+                                className="rounded-md border"
+                                initialFocus
+                            />
                         </div>
                     )}
                     <div className="space-y-2">
@@ -156,7 +139,11 @@ function ComboForm({ combo, onSave, onCancel }: { combo: Partial<Combo> | null, 
         return `Día: ${weekdays[Number(rule.value)]}`;
     }
     if (rule.type === 'date') {
-        return `Fecha: ${format(new Date(rule.value), "PPP")}`;
+        try {
+            return `Fecha: ${format(new Date(rule.value), "PPP")}`;
+        } catch {
+            return `Fecha: ${rule.value}`
+        }
     }
     return '';
   }
@@ -350,7 +337,11 @@ export default function CombosPage() {
         return `${rule.percentage}% los ${weekdays[Number(rule.value)]}`;
     }
     if (rule.type === 'date') {
-        return `${rule.percentage}% el ${format(new Date(rule.value), "dd/MM/yy")}`;
+        try {
+            return `${rule.percentage}% el ${format(new Date(rule.value), "dd/MM/yy")}`;
+        } catch {
+            return `${rule.percentage}% el ${rule.value}`;
+        }
     }
     return `${rule.percentage}%`;
   }
