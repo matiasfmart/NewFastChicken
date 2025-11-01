@@ -1,35 +1,44 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { InventoryTabs } from "@/components/admin/InventoryTabs";
 import type { InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection, query, where } from 'firebase/firestore';
 import { useFirestore } from '@/hooks/use-firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { addInventoryItem, updateInventoryItem, deleteInventoryItem } from '@/services/inventoryService';
+import { addInventoryItem, updateInventoryItem, deleteInventoryItem, getInventoryItems } from '@/services/inventoryService';
 
 export default function InventoryPage() {
   const firestore = useFirestore();
 
-  const [productsCollection, productsLoading, productsError] = useCollection(
-    firestore ? query(collection(firestore, 'inventory'), where('type', '==', 'product')) : null
-  );
-  const [drinksCollection, drinksLoading, drinksError] = useCollection(
-    firestore ? query(collection(firestore, 'inventory'), where('type', '==', 'drink')) : null
-  );
-  const [sidesCollection, sidesLoading, sidesError] = useCollection(
-    firestore ? query(collection(firestore, 'inventory'), where('type', '==', 'side')) : null
-  );
+  const [products, setProducts] = useState<InventoryItem[]>([]);
+  const [drinks, setDrinks] = useState<InventoryItem[]>([]);
+  const [sides, setSides] = useState<InventoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; category: 'products' | 'drinks' | 'sides' } | null>(null);
 
-  const products = productsCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
-  const drinks = drinksCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
-  const sides = sidesCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [];
+  const fetchData = async () => {
+    if (!firestore) return;
+    setIsLoading(true);
+    try {
+        const items = await getInventoryItems(firestore);
+        setProducts(items.filter(item => item.type === 'product'));
+        setDrinks(items.filter(item => item.type === 'drink'));
+        setSides(items.filter(item => item.type === 'side'));
+    } catch (error) {
+        console.error("Failed to fetch inventory:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [firestore]);
+
 
   const handleSaveInventory = async (item: InventoryItem, category: 'products' | 'drinks' | 'sides') => {
     if (!firestore) return;
@@ -39,6 +48,7 @@ export default function InventoryPage() {
     } else {
       await updateInventoryItem(firestore, id, data);
     }
+    fetchData(); // Refetch data after saving
   }
 
   const confirmDeleteItem = (id: string, category: 'products' | 'drinks' | 'sides') => {
@@ -51,10 +61,9 @@ export default function InventoryPage() {
       await deleteInventoryItem(firestore, itemToDelete.id);
       setDeleteAlertOpen(false);
       setItemToDelete(null);
+      fetchData(); // Refetch data after deleting
     }
   };
-
-  const isLoading = productsLoading || drinksLoading || sidesLoading;
 
   return (
     <div>

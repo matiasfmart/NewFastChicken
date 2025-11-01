@@ -5,8 +5,7 @@ import React, { createContext, useContext, useState, useCallback, useMemo, useEf
 import type { OrderItem, DeliveryType, Order, InventoryItem, Combo } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useFirestore } from "@/hooks/use-firebase";
-import { useCollectionData } from "react-firebase-hooks/firestore";
-import { collection, doc, runTransaction, Timestamp } from 'firebase/firestore';
+import { Timestamp } from 'firebase/firestore';
 import { createOrderWithStockUpdate } from "@/services/orderService";
 
 interface OrderContextType {
@@ -44,26 +43,14 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
   
-  // Listen for real-time inventory updates after the initial load
-  const [realtimeInventory, inventoryLoading] = useCollectionData(firestore ? collection(firestore, 'inventory') : null);
-
   useEffect(() => {
-    if (realtimeInventory) {
-      const stock = realtimeInventory.reduce((acc, item) => {
+    // Initialize stock from the server-provided inventory
+    const stock = initialInventory.reduce((acc, item) => {
         acc[item.id] = item.stock;
         return acc;
-      }, {} as Record<string, number>);
-      setInventoryStock(stock);
-      setInventory(realtimeInventory as InventoryItem[]);
-    } else {
-        // Fallback to initial inventory if real-time fails or on first load
-        const stock = initialInventory.reduce((acc, item) => {
-            acc[item.id] = item.stock;
-            return acc;
-        }, {} as Record<string, number>);
-        setInventoryStock(stock);
-    }
-  }, [realtimeInventory, initialInventory]);
+    }, {} as Record<string, number>);
+    setInventoryStock(stock);
+  }, [initialInventory]);
 
 
   const getInventoryStock = useCallback((itemId: string) => inventoryStock[itemId] ?? 0, [inventoryStock]);
@@ -124,13 +111,25 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
     try {
         const finalOrder = await createOrderWithStockUpdate(firestore, newOrderData);
 
-        // After transaction is successful
+        // After transaction is successful, update state
         setCompletedOrders(prev => [...prev, finalOrder]);
         setCurrentOrderNumber(prev => prev + 1);
+        
+        // Manually update local stock state for immediate UI feedback
+        setInventoryStock(currentStock => {
+            const newStock = {...currentStock};
+            for (const orderItem of newOrderData.items) {
+                const { combo, quantity } = orderItem;
+                if (combo.products) {
+                    for (const productInCombo of combo.products) {
+                        newStock[productInCombo.productId] -= productInCombo.quantity * quantity;
+                    }
+                }
+            }
+            return newStock;
+        });
+
         clearOrder();
-
-        // Stock is now updated via the realtime listener, so no need to manually set it.
-
         return finalOrder;
 
     } catch (e: any) {
@@ -139,7 +138,8 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
     }
   };
 
-  const isLoading = inventoryLoading;
+  // isLoading is false because data is now pre-fetched on the server
+  const isLoading = false;
 
   return (
     <OrderContext.Provider

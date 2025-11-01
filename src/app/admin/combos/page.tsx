@@ -21,10 +21,9 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { useFirestore } from '@/hooks/use-firebase';
-import { useCollection } from 'react-firebase-hooks/firestore';
-import { collection } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { addCombo, updateCombo, deleteCombo } from '@/services/comboService';
+import { addCombo, updateCombo, deleteCombo, getCombos } from '@/services/comboService';
+import { getInventoryItems } from '@/services/inventoryService';
 
 const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -306,12 +305,9 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
 export default function CombosPage() {
   const firestore = useFirestore();
 
-  const [combosCollection, combosLoading] = useCollection(
-    firestore ? collection(firestore, 'combos') : null
-  );
-  const [inventoryCollection, inventoryLoading] = useCollection(
-    firestore ? collection(firestore, 'inventory') : null
-  );
+  const [combos, setCombos] = useState<Combo[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isFormOpen, setFormOpen] = useState(false);
   const [editingCombo, setEditingCombo] = useState<Partial<Combo> | null>(null);
@@ -319,8 +315,27 @@ export default function CombosPage() {
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [deletingComboId, setDeletingComboId] = useState<string | null>(null);
 
-  const combos = useMemo(() => combosCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Combo)) || [], [combosCollection]);
-  const inventoryItems = useMemo(() => inventoryCollection?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)) || [], [inventoryCollection]);
+  const fetchData = async () => {
+    if (!firestore) return;
+    setIsLoading(true);
+    try {
+        const [comboData, inventoryData] = await Promise.all([
+            getCombos(firestore),
+            getInventoryItems(firestore)
+        ]);
+        setCombos(comboData);
+        setInventoryItems(inventoryData);
+    } catch (error) {
+        console.error("Failed to fetch data:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchData();
+  }, [firestore]);
+
 
   const openCreateForm = () => {
     setEditingCombo({
@@ -350,6 +365,7 @@ export default function CombosPage() {
     
     setFormOpen(false);
     setEditingCombo(null);
+    fetchData(); // Refetch data
   }
 
   const confirmDelete = (comboId: string) => {
@@ -362,6 +378,7 @@ export default function CombosPage() {
       await deleteCombo(firestore, deletingComboId);
       setDeleteAlertOpen(false);
       setDeletingComboId(null);
+      fetchData(); // Refetch data
     }
   };
 
@@ -383,8 +400,6 @@ export default function CombosPage() {
     }
     return `${rule.percentage}%`;
   }
-  
-  const isLoading = combosLoading || inventoryLoading;
 
   return (
     <>
@@ -486,5 +501,3 @@ export default function CombosPage() {
     </>
   );
 }
-
-    
