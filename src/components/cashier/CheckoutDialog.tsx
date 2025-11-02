@@ -91,8 +91,8 @@ const TicketLayout = ({ order, isKitchen }: { order: Order; isKitchen: boolean }
             <span>{deliveryText[order.deliveryType]}</span>
         </div>
         <div className="flex flex-col items-end">
-            <span>{order.createdAt.toLocaleDateString('es-AR')}</span>
-            <span>{order.createdAt.toLocaleTimeString('es-AR')}</span>
+            <span>{order.createdAt instanceof Date ? order.createdAt.toLocaleDateString('es-AR') : new Date(order.createdAt.seconds * 1000).toLocaleDateString('es-AR')}</span>
+            <span>{order.createdAt instanceof Date ? order.createdAt.toLocaleTimeString('es-AR') : new Date(order.createdAt.seconds * 1000).toLocaleTimeString('es-AR')}</span>
         </div>
       </div>
     </div>

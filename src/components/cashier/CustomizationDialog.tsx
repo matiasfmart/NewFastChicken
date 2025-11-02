@@ -56,22 +56,24 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     setIsSpicy(false);
   }, [item]);
 
-
   const { availableProducts, availableDrinks, availableSides } = useMemo(() => {
     if (!combo || allInventory.length === 0) return { availableProducts: [], availableDrinks: [], availableSides: [] };
-    
+
     const comboProductItems = combo.products.map(p => allInventory.find(i => i.id === p.productId)).filter(Boolean) as InventoryItem[];
-    
-    const products = comboProductItems.filter(i => i.type === 'product');
-    // Set default product if only one option
-    if (products.length === 1) setSelectedProductId(products[0].id);
 
     return {
-      availableProducts: products,
+      availableProducts: comboProductItems.filter(i => i.type === 'product'),
       availableDrinks: comboProductItems.filter(i => i.type === 'drink'),
       availableSides: comboProductItems.filter(i => i.type === 'side'),
     }
   }, [combo, allInventory]);
+
+  // Set default product if only one option
+  useEffect(() => {
+    if (availableProducts.length === 1 && !selectedProductId) {
+      setSelectedProductId(availableProducts[0].id);
+    }
+  }, [availableProducts, selectedProductId]);
 
   // Special handling for old generic drink/side combos
   const genericDrinkType = combo?.type === 'E' ? (combo.id === 'D' ? 'chica' : 'grande') : null;

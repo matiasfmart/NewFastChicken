@@ -378,7 +378,7 @@ export default function CombosPage() {
       await deleteCombo(firestore, deletingComboId);
       setDeleteAlertOpen(false);
       setDeletingComboId(null);
-      fetchData(); // Refetch data
+      await fetchData(); // Refetch data
     }
   };
 

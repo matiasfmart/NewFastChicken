@@ -132,8 +132,9 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
         clearOrder();
         return finalOrder;
 
-    } catch (e: any) {
-        toast({ variant: "destructive", title: "Error al procesar el pedido", description: e.message });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido al procesar el pedido';
+        toast({ variant: "destructive", title: "Error al procesar el pedido", description: errorMessage });
         return null;
     }
   };

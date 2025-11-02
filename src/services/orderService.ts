@@ -1,5 +1,5 @@
 
-import { collection, addDoc, doc, runTransaction, Firestore, Timestamp, UnFieldValue } from 'firebase/firestore';
+import { collection, addDoc, doc, runTransaction, Firestore, Timestamp } from 'firebase/firestore';
 import type { Order } from '@/lib/types';
 
 // This function creates a new order and updates product stock within a single transaction
