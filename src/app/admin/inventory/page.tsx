@@ -5,13 +5,10 @@ import React, { useState, useEffect } from 'react';
 import { InventoryTabs } from "@/components/admin/InventoryTabs";
 import type { InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useFirestore } from '@/hooks/use-firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { addInventoryItem, updateInventoryItem, deleteInventoryItem, getInventoryItems } from '@/services/inventoryService';
+import { InventoryAPI } from '@/api';
 
 export default function InventoryPage() {
-  const firestore = useFirestore();
-
   const [products, setProducts] = useState<InventoryItem[]>([]);
   const [drinks, setDrinks] = useState<InventoryItem[]>([]);
   const [sides, setSides] = useState<InventoryItem[]>([]);
@@ -21,10 +18,10 @@ export default function InventoryPage() {
   const [itemToDelete, setItemToDelete] = useState<{ id: string; category: 'products' | 'drinks' | 'sides' } | null>(null);
 
   const fetchData = async () => {
-    if (!firestore) return;
     setIsLoading(true);
     try {
-        const items = await getInventoryItems(firestore);
+        // ✅ Usando API interna - sin Firebase directo
+        const items = await InventoryAPI.getAll();
         setProducts(items.filter(item => item.type === 'product'));
         setDrinks(items.filter(item => item.type === 'drink'));
         setSides(items.filter(item => item.type === 'side'));
@@ -36,22 +33,25 @@ export default function InventoryPage() {
   };
 
   useEffect(() => {
-    if (firestore) {
-      fetchData();
-    }
-  }, [firestore]);
+    fetchData();
+  }, []);
 
 
   const handleSaveInventory = async (item: Partial<InventoryItem>) => {
-    if (!firestore) return;
     const { id, ...data } = item;
-    
-    if (id) {
-      await updateInventoryItem(firestore, id, data as Omit<InventoryItem, 'id'>);
-    } else {
-      await addInventoryItem(firestore, data as Omit<InventoryItem, 'id'>);
+
+    try {
+      if (id) {
+        // ✅ Actualizar item existente
+        await InventoryAPI.update(id, data as Omit<InventoryItem, 'id'>);
+      } else {
+        // ✅ Crear nuevo item
+        await InventoryAPI.create(data as Omit<InventoryItem, 'id'>);
+      }
+      await fetchData(); // Refetch data after saving
+    } catch (error) {
+      console.error("Failed to save inventory item:", error);
     }
-    await fetchData(); // Refetch data after saving
   }
 
   const confirmDeleteItem = (id: string, category: 'products' | 'drinks' | 'sides') => {
@@ -60,11 +60,16 @@ export default function InventoryPage() {
   };
 
   const handleDelete = async () => {
-    if (itemToDelete && firestore) {
-      await deleteInventoryItem(firestore, itemToDelete.id);
-      setDeleteAlertOpen(false);
-      setItemToDelete(null);
-      await fetchData(); // Refetch data after deleting
+    if (itemToDelete) {
+      try {
+        // ✅ Eliminar item usando API interna
+        await InventoryAPI.delete(itemToDelete.id);
+        setDeleteAlertOpen(false);
+        setItemToDelete(null);
+        await fetchData(); // Refetch data after deleting
+      } catch (error) {
+        console.error("Failed to delete inventory item:", error);
+      }
     }
   };
 

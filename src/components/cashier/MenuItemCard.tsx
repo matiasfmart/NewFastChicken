@@ -1,6 +1,7 @@
 
 "use client";
 
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Combo, InventoryItem, DiscountRule } from "@/lib/types";
@@ -30,12 +31,19 @@ const getActiveDiscount = (combo: Combo): number | null => {
     return null;
 }
 
-
-export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
+// Memoizar el componente completo para evitar re-renders innecesarios
+export const MenuItemCard = React.memo(function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
   const isCombo = 'products' in item;
   const combo = isCombo ? (item as Combo) : null;
-  const discount = combo ? getActiveDiscount(combo) : null;
-  const finalPrice = discount ? item.price * (1 - discount / 100) : item.price;
+
+  // Memoizar el cálculo de descuento que es costoso
+  const discount = useMemo(() => {
+    return combo ? getActiveDiscount(combo) : null;
+  }, [combo]);
+
+  const finalPrice = useMemo(() => {
+    return discount ? item.price * (1 - discount / 100) : item.price;
+  }, [discount, item.price]);
 
   return (
     <Card
@@ -61,6 +69,4 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
       </CardFooter>
     </Card>
   );
-}
-
-    
+});

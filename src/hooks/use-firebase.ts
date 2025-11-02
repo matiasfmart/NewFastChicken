@@ -18,3 +18,11 @@ export const useFirestore = () => {
     }
     return context.firestore;
 }
+
+export const useFirebaseInitialized = () => {
+    const context = useContext(FirebaseContext);
+    if (context === undefined) {
+        throw new Error('useFirebaseInitialized must be used within a FirebaseProvider');
+    }
+    return context.isInitialized;
+}

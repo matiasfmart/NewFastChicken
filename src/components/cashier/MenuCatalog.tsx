@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import type { Combo, InventoryItem } from '@/lib/types';
 import { MenuItemCard } from './MenuItemCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +11,8 @@ import { useOrder } from '@/context/OrderContext';
 
 export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | InventoryItem) => void; }) {
   const { combos, inventory, isLoading } = useOrder();
-  
+
+  // Memoizar el filtrado de items para evitar recalcular en cada render
   const { products, drinks, sides } = useMemo(() => {
     return {
         products: inventory.filter(i => i.type === 'product'),
@@ -20,7 +21,8 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
     }
   }, [inventory]);
 
-  const renderGrid = (items: (Combo | InventoryItem)[]) => {
+  // Memoizar la función renderGrid para evitar recrearla en cada render
+  const renderGrid = useCallback((items: (Combo | InventoryItem)[]) => {
       if (isLoading && items.length === 0) {
           return (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -36,7 +38,7 @@ export function MenuCatalog({ onSelectItem }: { onSelectItem: (item: Combo | Inv
         ))}
         </div>
       )
-  };
+  }, [isLoading, onSelectItem]);
 
   return (
     <div className="flex h-full flex-col gap-4">

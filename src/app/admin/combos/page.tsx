@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,10 +20,8 @@ import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useFirestore } from '@/hooks/use-firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { addCombo, updateCombo, deleteCombo, getCombos } from '@/services/comboService';
-import { getInventoryItems } from '@/services/inventoryService';
+import { ComboAPI, InventoryAPI } from '@/api';
 
 const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
@@ -303,8 +301,6 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
 
 
 export default function CombosPage() {
-  const firestore = useFirestore();
-
   const [combos, setCombos] = useState<Combo[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -316,12 +312,12 @@ export default function CombosPage() {
   const [deletingComboId, setDeletingComboId] = useState<string | null>(null);
 
   const fetchData = async () => {
-    if (!firestore) return;
     setIsLoading(true);
     try {
+        // ✅ Usando APIs internas - sin Firebase directo
         const [comboData, inventoryData] = await Promise.all([
-            getCombos(firestore),
-            getInventoryItems(firestore)
+            ComboAPI.getAll(),
+            InventoryAPI.getAll()
         ]);
         setCombos(comboData);
         setInventoryItems(inventoryData);
@@ -334,7 +330,7 @@ export default function CombosPage() {
 
   useEffect(() => {
     fetchData();
-  }, [firestore]);
+  }, []);
 
 
   const openCreateForm = () => {
@@ -354,18 +350,23 @@ export default function CombosPage() {
   };
   
   const handleSaveCombo = async (comboData: Partial<Combo>) => {
-    if (!firestore) return;
     const { id, ...data } = comboData;
-    
-    if (id) {
-        await updateCombo(firestore, id, data);
-    } else {
-        await addCombo(firestore, data as Omit<Combo, 'id'>);
+
+    try {
+      if (id) {
+        // ✅ Actualizar combo existente
+        await ComboAPI.update(id, data);
+      } else {
+        // ✅ Crear nuevo combo
+        await ComboAPI.create(data as Omit<Combo, 'id'>);
+      }
+
+      setFormOpen(false);
+      setEditingCombo(null);
+      await fetchData(); // Refetch data
+    } catch (error) {
+      console.error("Failed to save combo:", error);
     }
-    
-    setFormOpen(false);
-    setEditingCombo(null);
-    await fetchData(); // Refetch data
   }
 
   const confirmDelete = (comboId: string) => {
@@ -374,11 +375,16 @@ export default function CombosPage() {
   };
 
   const handleDelete = async () => {
-    if (deletingComboId && firestore) {
-      await deleteCombo(firestore, deletingComboId);
-      setDeleteAlertOpen(false);
-      setDeletingComboId(null);
-      await fetchData(); // Refetch data
+    if (deletingComboId) {
+      try {
+        // ✅ Eliminar combo usando API interna
+        await ComboAPI.delete(deletingComboId);
+        setDeleteAlertOpen(false);
+        setDeletingComboId(null);
+        await fetchData(); // Refetch data
+      } catch (error) {
+        console.error("Failed to delete combo:", error);
+      }
     }
   };
 
