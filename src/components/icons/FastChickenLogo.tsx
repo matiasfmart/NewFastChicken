@@ -13,9 +13,9 @@ export function FastChickenLogo({ className }: { className?: string }) {
         <path d="M12,10a3,3,0,1,0-3-3A3,3,0,0,0,12,10Zm0-4a1,1,0,1,1-1,1A1,1,0,0,1,12,6Z" />
         <path d="M17,6a1,1,0,1,0,1,1A1,1,0,0,0,17,6Z" />
       </svg>
-      <span className="font-headline text-2xl font-bold text-foreground">
-        Fast Chicken
-      </span>
+      {/* <span className="font-headline text-2xl font-bold text-foreground">
+        FC
+      </span> */}
     </div>
   );
 }
