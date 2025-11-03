@@ -66,9 +66,32 @@ export class FirebaseOrderRepository implements IOrderRepository {
    * Garantiza consistencia de datos usando transacciones de Firebase
    */
   async createWithStockUpdate(order: Omit<Order, 'id'>): Promise<Order> {
+    // Limpiar undefined de customizaciones anidadas (Firestore no los permite)
+    const cleanItems = order.items.map(item => {
+      const cleanedItem = { ...item };
+
+      // Limpiar customizaciones opcionales undefined
+      if (item.customizations) {
+        cleanedItem.customizations = Object.fromEntries(
+          Object.entries(item.customizations).filter(([_, value]) => value !== undefined)
+        ) as any;
+      }
+
+      // Limpiar appliedDiscount si es undefined
+      if (item.appliedDiscount === undefined) {
+        delete (cleanedItem as any).appliedDiscount;
+      }
+
+      return cleanedItem;
+    });
+
     // Convertir Date → Timestamp para Firebase
     const orderWithTimestamp = {
-      ...order,
+      items: cleanItems,
+      deliveryType: order.deliveryType,
+      subtotal: order.subtotal,
+      discount: order.discount,
+      total: order.total,
       createdAt: order.createdAt instanceof Date
         ? Timestamp.fromDate(order.createdAt)
         : order.createdAt
@@ -76,48 +99,58 @@ export class FirebaseOrderRepository implements IOrderRepository {
 
     // Usar transacción para garantizar consistencia
     return await runTransaction(this.firestore, async (transaction) => {
-      // 1. Verificar stock disponible para todos los productos
+      // Recopilar todas las referencias únicas de productos necesarios
+      const productUpdates = new Map<string, { ref: any; requiredQuantity: number }>();
+
+      // Calcular la cantidad total requerida de cada producto
       for (const orderItem of order.items) {
         const { combo, quantity } = orderItem;
 
         if (combo.products) {
           for (const productInCombo of combo.products) {
+            const currentRequired = productUpdates.get(productInCombo.productId)?.requiredQuantity || 0;
             const itemRef = doc(this.firestore, this.inventoryCollectionName, productInCombo.productId);
-            const itemDoc = await transaction.get(itemRef);
 
-            if (!itemDoc.exists()) {
-              throw new Error(`El producto con ID ${productInCombo.productId} no existe.`);
-            }
-
-            const currentStock = itemDoc.data().stock;
-            const requiredStock = productInCombo.quantity * quantity;
-
-            if (currentStock < requiredStock) {
-              throw new Error(`No hay suficiente stock para: ${itemDoc.data().name}.`);
-            }
+            productUpdates.set(productInCombo.productId, {
+              ref: itemRef,
+              requiredQuantity: currentRequired + (productInCombo.quantity * quantity)
+            });
           }
         }
       }
 
-      // 2. Si todas las validaciones pasan, decrementar el stock
-      for (const orderItem of order.items) {
-        const { combo, quantity } = orderItem;
+      // FASE 1: Realizar TODAS las lecturas primero
+      const inventorySnapshots = new Map<string, { snapshot: any; requiredQuantity: number }>();
 
-        if (combo.products) {
-          for (const productInCombo of combo.products) {
-            const itemRef = doc(this.firestore, this.inventoryCollectionName, productInCombo.productId);
-            const itemDoc = await transaction.get(itemRef);
-            const newStock = itemDoc.data()!.stock - productInCombo.quantity * quantity;
-            transaction.update(itemRef, { stock: newStock });
-          }
+      for (const [productId, { ref, requiredQuantity }] of productUpdates.entries()) {
+        const itemDoc = await transaction.get(ref);
+        inventorySnapshots.set(productId, { snapshot: itemDoc, requiredQuantity });
+      }
+
+      // FASE 2: Validar stock disponible (solo lectura, sin escrituras)
+      for (const [productId, { snapshot, requiredQuantity }] of inventorySnapshots.entries()) {
+        if (!snapshot.exists()) {
+          throw new Error(`El producto con ID ${productId} no existe.`);
+        }
+
+        const currentStock = snapshot.data().stock;
+        if (currentStock < requiredQuantity) {
+          throw new Error(`No hay suficiente stock para: ${snapshot.data().name}.`);
         }
       }
 
-      // 3. Crear el documento de la orden
+      // FASE 3: Realizar TODAS las escrituras al final
+      for (const [productId, { snapshot, requiredQuantity }] of inventorySnapshots.entries()) {
+        const itemRef = productUpdates.get(productId)!.ref;
+        const newStock = snapshot.data().stock - requiredQuantity;
+        transaction.update(itemRef, { stock: newStock });
+      }
+
+      // Crear el documento de la orden
       const orderRef = doc(collection(this.firestore, this.collectionName));
       transaction.set(orderRef, orderWithTimestamp);
 
-      // 4. Retornar la orden completa con Date nativo
+      // Retornar la orden completa con Date nativo
       return {
         ...order,
         id: orderRef.id,
