@@ -5,6 +5,7 @@ import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { firebaseConfig } from '@/lib/firebase-config';
+import { initializeAPIs } from '@/api/initializeAPIs';
 import type { FirebaseApp } from 'firebase/app';
 
 interface FirebaseContextType {
@@ -47,21 +48,30 @@ export const FirebaseProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   useEffect(() => {
-    // Inicializar APIs con Firestore
+    // Inicializar APIs con Firestore de forma sincrónica
     if (firebaseInstances.firestore) {
-      import('@/api/initializeAPIs').then(({ initializeAPIs }) => {
-        initializeAPIs(firebaseInstances.firestore!);
-      });
+      initializeAPIs(firebaseInstances.firestore);
+      // Marcar como inicializado DESPUÉS de que las APIs estén listas
+      setIsInitialized(true);
     }
-
-    // Marcar como inicializado inmediatamente
-    setIsInitialized(true);
   }, [firebaseInstances]);
 
   const contextValue = useMemo(() => ({
     ...firebaseInstances,
     isInitialized
   }), [firebaseInstances, isInitialized]);
+
+  // No renderizar children hasta que las APIs estén inicializadas
+  if (!isInitialized) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Inicializando aplicación...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <FirebaseContext.Provider value={contextValue}>

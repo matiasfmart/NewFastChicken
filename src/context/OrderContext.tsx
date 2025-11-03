@@ -1,12 +1,11 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { OrderItem, DeliveryType, Order, InventoryItem, Combo } from "@/lib/types";
+import type { CreateOrderDTO } from "@/dtos";
 import { useToast } from "@/hooks/use-toast";
-import { useFirestore } from "@/hooks/use-firebase";
-import { Timestamp } from 'firebase/firestore';
-import { createOrderWithStockUpdate } from "@/services/orderService";
+import { OrderAPI } from "@/api";
 
 interface OrderContextType {
   orderItems: OrderItem[];
@@ -30,7 +29,6 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos: Combo[], initialInventory: InventoryItem[] }> = ({ children, initialCombos, initialInventory }) => {
   const { toast } = useToast();
-  const firestore = useFirestore();
 
   const [combos, setCombos] = useState<Combo[]>(initialCombos);
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
@@ -93,23 +91,23 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   }, [clearOrder]);
 
   const finalizeOrder = async (): Promise<Order | null> => {
-    if (orderItems.length === 0 || !firestore) return null;
+    if (orderItems.length === 0) return null;
 
     const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
     const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
-    
-    const newOrderData = {
+
+    const newOrderData: CreateOrderDTO = {
         items: orderItems,
         deliveryType,
         subtotal,
         discount: subtotal - total,
         total,
-        createdAt: Timestamp.now(),
+        createdAt: new Date(),
     };
 
 
     try {
-        const finalOrder = await createOrderWithStockUpdate(firestore, newOrderData);
+        const finalOrder = await OrderAPI.create(newOrderData);
 
         // After transaction is successful, update state
         setCompletedOrders(prev => [...prev, finalOrder]);

@@ -1,66 +1,67 @@
-import { Firestore } from 'firebase/firestore';
 import type { Combo } from '@/lib/types';
 import type { CreateComboDTO, UpdateComboDTO } from '@/dtos';
-import { getCombos, addCombo, updateCombo, deleteCombo } from '@/services/comboService';
+import type { IComboRepository } from '@/domain/repositories/IComboRepository';
 
 /**
  * API interna de Combos
- * Abstrae Firebase del frontend
+ *
+ * ✅ ARQUITECTURA LIMPIA:
+ * - NO depende de Firebase (depende de IComboRepository)
+ * - Puede usar cualquier implementación (Firebase, MongoDB, etc)
+ * - Fácil de testear con mocks
  */
 class ComboAPIClient {
-  private firestore: Firestore | null = null;
+  private repository: IComboRepository | null = null;
 
-  setFirestore(firestore: Firestore) {
-    this.firestore = firestore;
+  /**
+   * Inyecta el repository (Dependency Injection)
+   */
+  setRepository(repository: IComboRepository) {
+    this.repository = repository;
   }
 
   /**
    * Obtiene todos los combos
    */
   async getAll(): Promise<Combo[]> {
-    if (!this.firestore) {
-      throw new Error('Firestore not initialized');
+    if (!this.repository) {
+      throw new Error('Repository not initialized');
     }
 
-    return await getCombos(this.firestore);
+    return await this.repository.getAll();
   }
 
   /**
    * Crea un nuevo combo
    */
   async create(dto: CreateComboDTO): Promise<Combo> {
-    if (!this.firestore) {
-      throw new Error('Firestore not initialized');
+    if (!this.repository) {
+      throw new Error('Repository not initialized');
     }
 
-    const comboId = await addCombo(this.firestore, dto);
-
-    return {
-      ...dto,
-      id: comboId
-    } as Combo;
+    return await this.repository.create(dto);
   }
 
   /**
    * Actualiza un combo existente
    */
   async update(id: string, dto: UpdateComboDTO): Promise<void> {
-    if (!this.firestore) {
-      throw new Error('Firestore not initialized');
+    if (!this.repository) {
+      throw new Error('Repository not initialized');
     }
 
-    await updateCombo(this.firestore, id, dto);
+    await this.repository.update(id, dto);
   }
 
   /**
    * Elimina un combo
    */
   async delete(id: string): Promise<void> {
-    if (!this.firestore) {
-      throw new Error('Firestore not initialized');
+    if (!this.repository) {
+      throw new Error('Repository not initialized');
     }
 
-    await deleteCombo(this.firestore, id);
+    await this.repository.delete(id);
   }
 }
 
