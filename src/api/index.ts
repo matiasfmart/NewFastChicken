@@ -4,3 +4,4 @@
 export { OrderAPI } from './orders';
 export { ComboAPI } from './combos';
 export { InventoryAPI } from './inventory';
+export { ShiftAPI } from './shifts';

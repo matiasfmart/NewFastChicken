@@ -17,8 +17,10 @@ export default function InventoryPage() {
   const [isDeleteAlertOpen, setDeleteAlertOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; category: 'products' | 'drinks' | 'sides' } | null>(null);
 
-  const fetchData = async () => {
-    setIsLoading(true);
+  const fetchData = async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
         // ✅ Usando API interna - sin Firebase directo
         const items = await InventoryAPI.getAll();
@@ -28,7 +30,9 @@ export default function InventoryPage() {
     } catch (error) {
         console.error("Failed to fetch inventory:", error);
     } finally {
+      if (showLoading) {
         setIsLoading(false);
+      }
     }
   };
 
@@ -48,9 +52,10 @@ export default function InventoryPage() {
         // ✅ Crear nuevo item
         await InventoryAPI.create(data as Omit<InventoryItem, 'id'>);
       }
-      await fetchData(); // Refetch data after saving
+      await fetchData(false); // Refetch data after saving WITHOUT showing loading
     } catch (error) {
       console.error("Failed to save inventory item:", error);
+      throw error; // Re-throw to let the component know it failed
     }
   }
 

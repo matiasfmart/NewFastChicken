@@ -5,7 +5,8 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import type { OrderItem, DeliveryType, Order, InventoryItem, Combo } from "@/lib/types";
 import type { CreateOrderDTO } from "@/dtos";
 import { useToast } from "@/hooks/use-toast";
-import { OrderAPI } from "@/api";
+import { OrderAPI, ShiftAPI } from "@/api";
+import { useShift } from "./ShiftContext";
 
 interface OrderContextType {
   orderItems: OrderItem[];
@@ -29,6 +30,7 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos: Combo[], initialInventory: InventoryItem[] }> = ({ children, initialCombos, initialInventory }) => {
   const { toast } = useToast();
+  const { currentShift, refreshShift } = useShift();
 
   const [combos, setCombos] = useState<Combo[]>(initialCombos);
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
@@ -105,14 +107,23 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
         createdAt: new Date(),
     };
 
-
     try {
         const finalOrder = await OrderAPI.create(newOrderData);
+
+        // Actualizar totales de la jornada activa si existe
+        if (currentShift) {
+          await ShiftAPI.update(currentShift.id, {
+            totalOrders: currentShift.totalOrders + 1,
+            totalRevenue: currentShift.totalRevenue + total
+          });
+          // Refrescar el estado de la jornada
+          await refreshShift();
+        }
 
         // After transaction is successful, update state
         setCompletedOrders(prev => [...prev, finalOrder]);
         setCurrentOrderNumber(prev => prev + 1);
-        
+
         // Manually update local stock state for immediate UI feedback
         setInventoryStock(currentStock => {
             const newStock = {...currentStock};

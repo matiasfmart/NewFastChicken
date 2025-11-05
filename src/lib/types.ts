@@ -59,6 +59,7 @@ export type DeliveryType = 'local' | 'takeaway' | 'delivery';
 
 export interface Order {
   id: number | string;
+  shiftId?: string; // Vincula la orden con una jornada
   items: OrderItem[];
   deliveryType: DeliveryType;
   subtotal: number;
@@ -68,11 +69,16 @@ export interface Order {
 }
 
 export interface Shift {
-    id: string;
-    start: Date;
-    end?: Date;
-    orders: Order[];
-    totalRevenue: number;
+  id: string;
+  employeeName: string; // Nombre del cajero responsable
+  startedAt: Date | Timestamp;
+  endedAt?: Date | Timestamp;
+  status: 'open' | 'closed';
+  initialCash: number; // Fondo inicial en caja
+  totalOrders: number;
+  totalRevenue: number;
+  actualCash?: number; // Efectivo real contado al cerrar
+  cashDifference?: number; // Diferencia entre esperado y real
 }
 
     

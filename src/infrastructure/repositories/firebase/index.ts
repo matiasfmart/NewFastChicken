@@ -10,3 +10,4 @@
 export { FirebaseInventoryRepository } from './FirebaseInventoryRepository';
 export { FirebaseComboRepository } from './FirebaseComboRepository';
 export { FirebaseOrderRepository } from './FirebaseOrderRepository';
+export { FirebaseShiftRepository } from './FirebaseShiftRepository';

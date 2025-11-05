@@ -8,3 +8,4 @@
 export type { IInventoryRepository } from './IInventoryRepository';
 export type { IComboRepository } from './IComboRepository';
 export type { IOrderRepository } from './IOrderRepository';
+export type { IShiftRepository } from './IShiftRepository';
