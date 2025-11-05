@@ -6,6 +6,7 @@ import { OrderAPI } from './orders';
 import { ComboAPI } from './combos';
 import { InventoryAPI } from './inventory';
 import { ShiftAPI } from './shifts';
+import { EmployeeAPI } from './employees';
 import {
   FirebaseInventoryRepository,
   FirebaseComboRepository,
@@ -16,7 +17,8 @@ import {
   MongoDBInventoryRepository,
   MongoDBComboRepository,
   MongoDBOrderRepository,
-  MongoDBShiftRepository
+  MongoDBShiftRepository,
+  MongoDBEmployeeRepository
 } from '@/infrastructure/repositories/mongodb';
 
 /**
@@ -58,12 +60,14 @@ export function initializeAPIsWithMongoDB(db: Db) {
   const comboRepository = new MongoDBComboRepository(db);
   const orderRepository = new MongoDBOrderRepository(db);
   const shiftRepository = new MongoDBShiftRepository(db);
+  const employeeRepository = new MongoDBEmployeeRepository(db);
 
   // Inyectar repositories en las APIs
   InventoryAPI.setRepository(inventoryRepository);
   ComboAPI.setRepository(comboRepository);
   OrderAPI.setRepository(orderRepository);
   ShiftAPI.setRepository(shiftRepository);
+  EmployeeAPI.setRepository(employeeRepository);
 }
 
 // Re-exportar ambas funciones con nombres alternativos para compatibilidad

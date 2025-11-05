@@ -2,11 +2,13 @@ import { OrderAPI } from './orders';
 import { ComboAPI } from './combos';
 import { InventoryAPI } from './inventory';
 import { ShiftAPI } from './shifts';
+import { EmployeeAPI } from './employees';
 import {
   HttpInventoryRepository,
   HttpComboRepository,
   HttpOrderRepository,
-  HttpShiftRepository
+  HttpShiftRepository,
+  HttpEmployeeRepository
 } from '@/infrastructure/repositories/http';
 
 /**
@@ -33,10 +35,12 @@ export function initializeAPIsWithHttp(baseUrl: string = '') {
   const comboRepository = new HttpComboRepository(baseUrl ? `${baseUrl}/api/combos` : '/api/combos');
   const orderRepository = new HttpOrderRepository(baseUrl ? `${baseUrl}/api/orders` : '/api/orders');
   const shiftRepository = new HttpShiftRepository(baseUrl ? `${baseUrl}/api/shifts` : '/api/shifts');
+  const employeeRepository = new HttpEmployeeRepository(baseUrl ? `${baseUrl}/api/employees` : '/api/employees');
 
   // Inyectar repositories en las APIs
   InventoryAPI.setRepository(inventoryRepository);
   ComboAPI.setRepository(comboRepository);
   OrderAPI.setRepository(orderRepository);
   ShiftAPI.setRepository(shiftRepository);
+  EmployeeAPI.setRepository(employeeRepository);
 }

@@ -10,3 +10,4 @@ export { HttpComboRepository } from './HttpComboRepository';
 export { HttpInventoryRepository } from './HttpInventoryRepository';
 export { HttpOrderRepository } from './HttpOrderRepository';
 export { HttpShiftRepository } from './HttpShiftRepository';
+export { HttpEmployeeRepository } from './HttpEmployeeRepository';

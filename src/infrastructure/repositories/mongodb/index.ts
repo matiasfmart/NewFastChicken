@@ -8,3 +8,4 @@ export { MongoDBInventoryRepository } from './MongoDBInventoryRepository';
 export { MongoDBComboRepository } from './MongoDBComboRepository';
 export { MongoDBOrderRepository } from './MongoDBOrderRepository';
 export { MongoDBShiftRepository } from './MongoDBShiftRepository';
+export { MongoDBEmployeeRepository } from './MongoDBEmployeeRepository';

@@ -8,7 +8,7 @@ import { ShiftAPI } from "@/api";
 interface ShiftContextType {
   currentShift: Shift | null;
   isLoading: boolean;
-  startShift: (employeeName: string, initialCash: number) => Promise<void>;
+  startShift: (employeeId: string, employeeName: string, initialCash: number) => Promise<void>;
   endShift: (actualCash: number) => Promise<void>;
   refreshShift: () => Promise<void>;
 }
@@ -42,9 +42,10 @@ export const ShiftProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadActiveShift();
   }, [loadActiveShift]);
 
-  const startShift = useCallback(async (employeeName: string, initialCash: number) => {
+  const startShift = useCallback(async (employeeId: string, employeeName: string, initialCash: number) => {
     try {
       const newShift: Omit<Shift, 'id'> = {
+        employeeId,
         employeeName,
         startedAt: new Date(),
         status: 'open',

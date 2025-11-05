@@ -68,9 +68,18 @@ export interface Order {
   createdAt: Date | Timestamp;
 }
 
+export interface Employee {
+  id: string;
+  name: string;
+  role: 'cashier' | 'admin';
+  active: boolean;
+  createdAt: Date | Timestamp;
+}
+
 export interface Shift {
   id: string;
-  employeeName: string; // Nombre del cajero responsable
+  employeeId: string; // ✅ Referencia al empleado
+  employeeName: string; // ✅ Desnormalizado para reportes rápidos
   startedAt: Date | Timestamp;
   endedAt?: Date | Timestamp;
   status: 'open' | 'closed';
