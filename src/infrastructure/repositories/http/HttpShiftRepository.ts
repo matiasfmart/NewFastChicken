@@ -62,6 +62,7 @@ export class HttpShiftRepository implements IShiftRepository {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString()
     });
+
     const response = await fetch(`${this.baseUrl}?${params}`);
     if (!response.ok) {
       throw new Error('Failed to fetch shifts by date range');

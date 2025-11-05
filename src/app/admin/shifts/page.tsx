@@ -7,15 +7,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, Clock, DollarSign, User, TrendingUp, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { ShiftDetailModal } from '@/components/admin/ShiftDetailModal';
+import { DateRangeSelector } from '@/components/admin/DateRangeSelector';
 
 export default function ShiftsHistoryPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Estado del filtro de fechas
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>(() => {
+    const today = new Date();
+    return {
+      from: startOfDay(today),
+      to: endOfDay(today)
+    };
+  });
 
   const handleShiftClick = (shiftId: string) => {
     setSelectedShiftId(shiftId);
@@ -24,12 +34,12 @@ export default function ShiftsHistoryPage() {
 
   useEffect(() => {
     fetchShifts();
-  }, []);
+  }, [dateRange]);
 
   const fetchShifts = async () => {
     setIsLoading(true);
     try {
-      const data = await ShiftAPI.getAll();
+      const data = await ShiftAPI.getByDateRange(dateRange.from, dateRange.to);
       // Ordenar por fecha más reciente primero
       const sorted = data.sort((a, b) => {
         const dateA = a.startedAt instanceof Date ? a.startedAt : new Date(a.startedAt as any);
@@ -89,9 +99,15 @@ export default function ShiftsHistoryPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold tracking-tight">Historial de Jornadas</h1>
-        <Badge variant="outline" className="text-sm">
-          {shifts.length} jornada{shifts.length !== 1 ? 's' : ''}
-        </Badge>
+        <div className="flex items-center gap-4">
+          <DateRangeSelector
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+          />
+          <Badge variant="outline" className="text-sm">
+            {shifts.length} jornada{shifts.length !== 1 ? 's' : ''}
+          </Badge>
+        </div>
       </div>
 
       {shifts.length === 0 ? (

@@ -20,6 +20,8 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const active = searchParams.get('active');
     const id = searchParams.get('id');
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
     if (id) {
       const shift = await ShiftAPI.getById(id);
@@ -29,6 +31,12 @@ export async function GET(request: Request) {
     if (active === 'true') {
       const shift = await ShiftAPI.getActiveShift();
       return NextResponse.json(shift);
+    }
+
+    // Soporte para filtrado por rango de fechas
+    if (startDate && endDate) {
+      const shifts = await ShiftAPI.getByDateRange(new Date(startDate), new Date(endDate));
+      return NextResponse.json(shifts);
     }
 
     const shifts = await ShiftAPI.getAll();

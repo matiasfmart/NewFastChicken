@@ -75,8 +75,25 @@ export class MongoDBShiftRepository implements IShiftRepository {
     return this.toShift(sortedDocs[0]);
   }
 
+  /**
+   * Convierte cualquier tipo de fecha a Date nativo
+   */
+  private toDate(value: any): Date {
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') return new Date(value);
+    if (value && typeof value.toDate === 'function') return value.toDate(); // Firebase Timestamp
+    return new Date(value);
+  }
+
   async create(shift: Omit<Shift, 'id'>): Promise<Shift> {
-    const result = await this.collection.insertOne(shift);
+    // Convert date strings/Timestamps to Date objects before storing
+    const shiftToStore = {
+      ...shift,
+      startedAt: this.toDate(shift.startedAt),
+      endedAt: shift.endedAt ? this.toDate(shift.endedAt) : undefined
+    };
+
+    const result = await this.collection.insertOne(shiftToStore);
     return {
       ...shift,
       id: result.insertedId.toString()
@@ -84,9 +101,18 @@ export class MongoDBShiftRepository implements IShiftRepository {
   }
 
   async update(id: string, shift: Partial<Omit<Shift, 'id'>>): Promise<void> {
+    // Convert any date fields to Date objects
+    const updateData: any = { ...shift };
+    if (updateData.startedAt) {
+      updateData.startedAt = this.toDate(updateData.startedAt);
+    }
+    if (updateData.endedAt) {
+      updateData.endedAt = this.toDate(updateData.endedAt);
+    }
+
     await this.collection.updateOne(
       { _id: new ObjectId(id) },
-      { $set: shift }
+      { $set: updateData }
     );
   }
 
@@ -99,15 +125,33 @@ export class MongoDBShiftRepository implements IShiftRepository {
   }
 
   async getByDateRange(startDate: Date, endDate: Date): Promise<Shift[]> {
+    // Query con $or para manejar tanto Date objects como strings (datos legacy)
+    // MongoDB compara strings ISO correctamente si están en el formato correcto
+    const startISO = startDate.toISOString();
+    const endISO = endDate.toISOString();
+
     const docs = await this.collection
       .find({
-        startedAt: {
-          $gte: startDate,
-          $lt: endDate
-        }
+        $or: [
+          // Para documentos con Date objects
+          {
+            startedAt: {
+              $gte: startDate,
+              $lte: endDate
+            }
+          },
+          // Para documentos con strings ISO (legacy data)
+          {
+            startedAt: {
+              $gte: startISO,
+              $lte: endISO
+            }
+          }
+        ]
       })
       .sort({ startedAt: -1 })
       .toArray();
+
     return docs.map(doc => this.toShift(doc));
   }
 
