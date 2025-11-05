@@ -50,6 +50,17 @@ class OrderAPIClient {
   }
 
   /**
+   * Obtiene órdenes de una jornada específica
+   */
+  async getByShiftId(shiftId: string): Promise<Order[]> {
+    if (!this.repository) {
+      throw new Error('Repository not initialized');
+    }
+
+    return await this.repository.getByShiftId(shiftId);
+  }
+
+  /**
    * Obtiene todas las órdenes
    */
   async getAll(): Promise<Order[]> {

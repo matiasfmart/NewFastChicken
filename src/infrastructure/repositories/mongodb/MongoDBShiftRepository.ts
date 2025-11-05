@@ -28,6 +28,7 @@ export class MongoDBShiftRepository implements IShiftRepository {
   private toShift(doc: any): Shift {
     return {
       id: doc._id.toString(),
+      employeeId: doc.employeeId,
       employeeName: doc.employeeName,
       startedAt: doc.startedAt,
       endedAt: doc.endedAt,

@@ -7,7 +7,6 @@
 import { NextResponse } from 'next/server';
 import { initializeMongoDB } from '@/lib/mongodb-init';
 import { OrderAPI } from '@/api';
-import type { Order } from '@/lib/types';
 
 async function ensureInitialized() {
   await initializeMongoDB();
@@ -17,7 +16,7 @@ export async function POST(request: Request) {
   try {
     await ensureInitialized();
 
-    const orderData: Omit<Order, 'id'> = await request.json();
+    const orderData = await request.json();
     const order = await OrderAPI.create(orderData);
     return NextResponse.json(order);
   } catch (error) {
@@ -35,6 +34,12 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
+    const shiftId = searchParams.get('shiftId');
+
+    if (shiftId) {
+      const orders = await OrderAPI.getByShiftId(shiftId);
+      return NextResponse.json(orders);
+    }
 
     if (date) {
       const orders = await OrderAPI.getByDate(new Date(date));

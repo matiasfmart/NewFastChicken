@@ -58,6 +58,14 @@ export class HttpOrderRepository implements IOrderRepository {
     return response.json();
   }
 
+  async getByShiftId(shiftId: string): Promise<Order[]> {
+    const response = await fetch(`${this.baseUrl}?shiftId=${shiftId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch orders by shift');
+    }
+    return response.json();
+  }
+
   async update(id: string, order: Partial<Omit<Order, 'id'>>): Promise<void> {
     const response = await fetch(this.baseUrl, {
       method: 'PATCH',

@@ -19,6 +19,12 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const active = searchParams.get('active');
+    const id = searchParams.get('id');
+
+    if (id) {
+      const shift = await ShiftAPI.getById(id);
+      return NextResponse.json(shift);
+    }
 
     if (active === 'true') {
       const shift = await ShiftAPI.getActiveShift();

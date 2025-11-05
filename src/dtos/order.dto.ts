@@ -5,6 +5,7 @@ import type { OrderItem, DeliveryType } from '@/lib/types';
  * Usa Date nativo, NO Timestamp de Firebase
  */
 export interface CreateOrderDTO {
+  shiftId?: string;
   items: OrderItem[];
   deliveryType: DeliveryType;
   subtotal: number;

@@ -52,6 +52,11 @@ export class MongoDBOrderRepository implements IOrderRepository {
     return docs.map(doc => this.toOrder(doc));
   }
 
+  async getByShiftId(shiftId: string): Promise<Order[]> {
+    const docs = await this.collection.find({ shiftId }).sort({ createdAt: -1 }).toArray();
+    return docs.map(doc => this.toOrder(doc));
+  }
+
   async getById(id: string): Promise<Order | null> {
     const doc = await this.collection.findOne({ _id: new ObjectId(id) });
     return doc ? this.toOrder(doc) : null;

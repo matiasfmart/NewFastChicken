@@ -99,6 +99,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
     const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
 
     const newOrderData: CreateOrderDTO = {
+        shiftId: currentShift?.id,
         items: orderItems,
         deliveryType,
         subtotal,

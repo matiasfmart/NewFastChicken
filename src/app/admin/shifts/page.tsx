@@ -9,10 +9,18 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, Clock, DollarSign, User, TrendingUp, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ShiftDetailModal } from '@/components/admin/ShiftDetailModal';
 
 export default function ShiftsHistoryPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleShiftClick = (shiftId: string) => {
+    setSelectedShiftId(shiftId);
+    setIsModalOpen(true);
+  };
 
   useEffect(() => {
     fetchShifts();
@@ -24,8 +32,8 @@ export default function ShiftsHistoryPage() {
       const data = await ShiftAPI.getAll();
       // Ordenar por fecha más reciente primero
       const sorted = data.sort((a, b) => {
-        const dateA = a.startedAt instanceof Date ? a.startedAt : new Date(a.startedAt);
-        const dateB = b.startedAt instanceof Date ? b.startedAt : new Date(b.startedAt);
+        const dateA = a.startedAt instanceof Date ? a.startedAt : new Date(a.startedAt as any);
+        const dateB = b.startedAt instanceof Date ? b.startedAt : new Date(b.startedAt as any);
         return dateB.getTime() - dateA.getTime();
       });
       setShifts(sorted);
@@ -100,7 +108,11 @@ export default function ShiftsHistoryPage() {
             const hasDifference = shift.cashDifference !== undefined && shift.cashDifference !== 0;
 
             return (
-              <Card key={shift.id} className={shift.status === 'open' ? 'border-primary' : ''}>
+              <Card
+                key={shift.id}
+                className={`cursor-pointer hover:bg-accent/50 transition-colors ${shift.status === 'open' ? 'border-primary' : ''}`}
+                onClick={() => handleShiftClick(shift.id)}
+              >
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -187,6 +199,13 @@ export default function ShiftsHistoryPage() {
           })}
         </div>
       )}
+
+      {/* Modal de detalle */}
+      <ShiftDetailModal
+        shiftId={selectedShiftId}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }

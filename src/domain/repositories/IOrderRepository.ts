@@ -16,6 +16,11 @@ export interface IOrderRepository {
   getByDateRange(startDate: Date, endDate: Date): Promise<Order[]>;
 
   /**
+   * Obtiene órdenes de una jornada específica
+   */
+  getByShiftId(shiftId: string): Promise<Order[]>;
+
+  /**
    * Obtiene una orden por su ID
    */
   getById(id: string): Promise<Order | null>;
