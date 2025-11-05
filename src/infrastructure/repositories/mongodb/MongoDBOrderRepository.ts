@@ -58,69 +58,61 @@ export class MongoDBOrderRepository implements IOrderRepository {
   }
 
   /**
-   * Crea una orden y actualiza el stock en una transacción atómica
-   * Garantiza consistencia de datos usando sesiones de MongoDB
+   * Crea una orden y actualiza el stock
+   *
+   * ⚠️ NOTA: Sin transacciones para compatibilidad con MongoDB standalone
+   * En producción con Replica Set, se pueden habilitar transacciones
    */
   async createWithStockUpdate(order: Omit<Order, 'id'>): Promise<Order> {
-    const client = await getMongoClient();
-    const session: ClientSession = client.startSession();
-
     try {
-      let createdOrder: Order;
+      // Calcular la cantidad total requerida de cada producto
+      const productUpdates = new Map<string, number>();
 
-      await session.withTransaction(async () => {
-        // Calcular la cantidad total requerida de cada producto
-        const productUpdates = new Map<string, number>();
+      for (const orderItem of order.items) {
+        const { combo, quantity } = orderItem;
 
-        for (const orderItem of order.items) {
-          const { combo, quantity } = orderItem;
-
-          if (combo.products) {
-            for (const productInCombo of combo.products) {
-              const currentRequired = productUpdates.get(productInCombo.productId) || 0;
-              productUpdates.set(
-                productInCombo.productId,
-                currentRequired + (productInCombo.quantity * quantity)
-              );
-            }
+        if (combo.products) {
+          for (const productInCombo of combo.products) {
+            const currentRequired = productUpdates.get(productInCombo.productId) || 0;
+            productUpdates.set(
+              productInCombo.productId,
+              currentRequired + (productInCombo.quantity * quantity)
+            );
           }
         }
+      }
 
-        // Validar y actualizar stock de cada producto
-        for (const [productId, requiredQuantity] of productUpdates.entries()) {
-          const product = await this.inventoryCollection.findOne(
-            { _id: new ObjectId(productId) },
-            { session }
-          );
+      // Validar y actualizar stock de cada producto
+      for (const [productId, requiredQuantity] of productUpdates.entries()) {
+        const product = await this.inventoryCollection.findOne(
+          { _id: new ObjectId(productId) }
+        );
 
-          if (!product) {
-            throw new Error(`El producto con ID ${productId} no existe.`);
-          }
-
-          if (product.stock < requiredQuantity) {
-            throw new Error(`No hay suficiente stock para: ${product.name}.`);
-          }
-
-          // Actualizar el stock
-          await this.inventoryCollection.updateOne(
-            { _id: new ObjectId(productId) },
-            { $inc: { stock: -requiredQuantity } },
-            { session }
-          );
+        if (!product) {
+          throw new Error(`El producto con ID ${productId} no existe.`);
         }
 
-        // Insertar la orden
-        const result = await this.collection.insertOne(order, { session });
+        if (product.stock < requiredQuantity) {
+          throw new Error(`No hay suficiente stock para: ${product.name}.`);
+        }
 
-        createdOrder = {
-          ...order,
-          id: result.insertedId.toString()
-        };
-      });
+        // Actualizar el stock
+        await this.inventoryCollection.updateOne(
+          { _id: new ObjectId(productId) },
+          { $inc: { stock: -requiredQuantity } }
+        );
+      }
 
-      return createdOrder!;
-    } finally {
-      await session.endSession();
+      // Insertar la orden
+      const result = await this.collection.insertOne(order);
+
+      return {
+        ...order,
+        id: result.insertedId.toString()
+      };
+    } catch (error) {
+      console.error('Error creating order with stock update:', error);
+      throw error;
     }
   }
 
