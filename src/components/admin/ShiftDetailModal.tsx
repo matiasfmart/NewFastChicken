@@ -91,15 +91,26 @@ export function ShiftDetailModal({ shiftId, isOpen, onClose }: ShiftDetailModalP
   const totalOrders = orders.length;
   const avgTicket = shift && totalOrders > 0 ? shift.totalRevenue / totalOrders : 0;
 
-  // Agrupar por combo
+  // Agrupar por combo o producto individual
   const comboSales = orders.reduce((acc, order) => {
     order.items.forEach(item => {
-      const comboName = item.combo?.name || 'Sin nombre';
-      if (!acc[comboName]) {
-        acc[comboName] = { qty: 0, total: 0 };
+      let itemName: string;
+
+      // Si es un combo
+      if (item.combo) {
+        itemName = item.combo.name;
       }
-      acc[comboName].qty += item.quantity;
-      acc[comboName].total += item.quantity * item.finalUnitPrice;
+      // Si es un producto individual
+      else {
+        const individualProduct = item.customizations.product || item.customizations.drink || item.customizations.side;
+        itemName = individualProduct?.name || 'Producto sin nombre';
+      }
+
+      if (!acc[itemName]) {
+        acc[itemName] = { qty: 0, total: 0 };
+      }
+      acc[itemName].qty += item.quantity;
+      acc[itemName].total += item.quantity * item.finalUnitPrice;
     });
     return acc;
   }, {} as Record<string, { qty: number; total: number }>);
@@ -270,7 +281,12 @@ export function ShiftDetailModal({ shiftId, isOpen, onClose }: ShiftDetailModalP
                           </span>
                           <div>
                             <p className="font-medium">
-                              {order.items.map(item => `${item.quantity}x ${item.combo?.name || 'Combo'}`).join(', ')}
+                              {order.items.map(item => {
+                                const itemName = item.combo
+                                  ? item.combo.name
+                                  : (item.customizations.product?.name || item.customizations.drink?.name || item.customizations.side?.name || 'Producto');
+                                return `${item.quantity}x ${itemName}`;
+                              }).join(', ')}
                             </p>
                             <p className="text-sm text-muted-foreground capitalize">{order.deliveryType}</p>
                           </div>

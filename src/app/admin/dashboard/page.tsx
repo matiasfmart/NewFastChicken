@@ -73,13 +73,24 @@ export default function AdminDashboardPage() {
 
     for (const order of orders) {
       for (const item of order.items) {
-        const comboId = item.combo?.id;
-        if (!comboId) continue;
+        let itemKey: string;
 
-        const current = salesMap.get(comboId) || { sales: 0, revenue: 0 };
+        // Manejar combos
+        if (item.combo) {
+          itemKey = `combo-${item.combo.id}`;
+        }
+        // Manejar productos individuales
+        else {
+          const individualProduct = item.customizations.product || item.customizations.drink || item.customizations.side;
+          if (!individualProduct) continue; // Skip si no hay producto
+
+          itemKey = `individual-${individualProduct.id}`;
+        }
+
+        const current = salesMap.get(itemKey) || { sales: 0, revenue: 0 };
         current.sales += item.quantity;
         current.revenue += item.finalUnitPrice * item.quantity;
-        salesMap.set(comboId, current);
+        salesMap.set(itemKey, current);
       }
     }
 
@@ -88,16 +99,32 @@ export default function AdminDashboardPage() {
       return acc;
     }, {} as Record<string, Combo>);
 
-    const comboSalesData: ComboSaleData[] = Array.from(salesMap.entries()).map(([comboId, data]) => {
-      const combo = comboDetails[comboId];
-      const comboType = combo?.type || 'Otro';
-      let friendlyType = 'Otro';
-      if (comboType === 'PO') friendlyType = 'Pollo';
-      else if (comboType === 'BG') friendlyType = 'Hamburguesa';
-      else if (['E', 'ES', 'EP'].includes(comboType)) friendlyType = 'Individual';
+    const comboSalesData: ComboSaleData[] = Array.from(salesMap.entries()).map(([itemKey, data]) => {
+      let name: string;
+      let friendlyType: string;
+
+      // Si es un combo
+      if (itemKey.startsWith('combo-')) {
+        const comboId = itemKey.replace('combo-', '');
+        const combo = comboDetails[comboId];
+        name = combo?.name || `Combo ID: ${comboId}`;
+
+        const comboType = combo?.type || 'Otro';
+        if (comboType === 'PO') friendlyType = 'Pollo';
+        else if (comboType === 'BG') friendlyType = 'Hamburguesa';
+        else if (['E', 'ES', 'EP'].includes(comboType)) friendlyType = 'Individual';
+        else friendlyType = 'Otro';
+      }
+      // Si es producto individual
+      else {
+        const productId = itemKey.replace('individual-', '');
+        const product = inventory.find(inv => inv.id === productId);
+        name = product?.name || `Producto ID: ${productId}`;
+        friendlyType = 'Individual';
+      }
 
       return {
-        name: combo?.name || `ID: ${comboId}`,
+        name,
         type: friendlyType,
         sales: data.sales,
         revenue: data.revenue

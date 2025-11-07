@@ -9,7 +9,6 @@ export interface InventoryItem {
   name: string;
   price: number;
   stock: number;
-  category?: 'chica' | 'grande'; // for drinks
 }
 
 export interface ComboProduct {
@@ -38,7 +37,7 @@ export interface Combo {
 
 export interface OrderItem {
   id: string; // comboId + customizations
-  combo: Combo;
+  combo: Combo | null; // null para productos individuales
   quantity: number;
   unitPrice: number;
   finalUnitPrice: number;

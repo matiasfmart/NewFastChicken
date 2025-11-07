@@ -16,40 +16,77 @@ interface CheckoutDialogProps {
 }
 
 const TicketLayout = ({ order, isKitchen }: { order: Order; isKitchen: boolean }) => {
-    
+
   const deliveryText = {
       local: 'Para comer acá',
       takeaway: 'Para llevar',
       delivery: 'Delivery'
   }
 
-  const renderItem = (item: OrderItem) => (
-    <div key={item.id} className="text-sm">
-        <div className="flex justify-between">
-            <span className="font-bold">{item.quantity}x {item.combo.name}</span>
-            {!isKitchen && (
-                 <div className="flex flex-col items-end">
-                    {item.appliedDiscount ? (
-                        <>
-                           <span className="text-xs line-through text-muted-foreground">${item.unitPrice.toLocaleString('es-AR')}</span>
-                           <span className="font-bold">${item.finalUnitPrice.toLocaleString('es-AR')} c/u</span>
-                        </>
-                    ) : (
-                        <span className="font-bold">${item.unitPrice.toLocaleString('es-AR')} c/u</span>
-                    )}
-                 </div>
-            )}
-        </div>
-        {!isKitchen && item.appliedDiscount && <Badge variant="outline" className="text-accent-foreground bg-accent mb-1">{item.appliedDiscount.percentage}% OFF</Badge>}
+  // Función helper para convertir createdAt a Date de forma segura
+  const getOrderDate = (): Date => {
+    if (order.createdAt instanceof Date) {
+      return order.createdAt;
+    }
+    // Si es un objeto Timestamp de Firestore
+    if (typeof order.createdAt === 'object' && 'seconds' in order.createdAt) {
+      return new Date((order.createdAt as any).seconds * 1000);
+    }
+    // Si es un string ISO (desde API)
+    if (typeof order.createdAt === 'string') {
+      return new Date(order.createdAt);
+    }
+    // Fallback
+    return new Date();
+  }
 
-        <div className="pl-4 text-muted-foreground">
-            {item.customizations.product && <div>{item.customizations.product.name}</div>}
-            {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
-            {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
-            {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
-        </div>
-    </div>
-  )
+  const renderItem = (item: OrderItem) => {
+    // Determinar el nombre del ítem
+    const itemName = item.combo
+      ? item.combo.name
+      : (item.customizations.product?.name || item.customizations.drink?.name || item.customizations.side?.name || 'Producto');
+
+    return (
+      <div key={item.id} className="text-sm">
+          <div className="flex justify-between">
+              <span className="font-bold">{item.quantity}x {itemName}</span>
+              {!isKitchen && (
+                   <div className="flex flex-col items-end">
+                      {item.appliedDiscount ? (
+                          <>
+                             <span className="text-xs line-through text-muted-foreground">${item.unitPrice.toLocaleString('es-AR')}</span>
+                             <span className="font-bold">${item.finalUnitPrice.toLocaleString('es-AR')} c/u</span>
+                          </>
+                      ) : (
+                          <span className="font-bold">${item.unitPrice.toLocaleString('es-AR')} c/u</span>
+                      )}
+                   </div>
+              )}
+          </div>
+          {!isKitchen && item.appliedDiscount && <Badge variant="outline" className="text-accent-foreground bg-accent mb-1">{item.appliedDiscount.percentage}% OFF</Badge>}
+
+          {/* Solo mostrar detalles de customización para combos */}
+          {item.combo && (
+            <div className="pl-4 text-muted-foreground">
+                {item.customizations.product && <div>{item.customizations.product.name}</div>}
+                {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
+                {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
+                {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
+            </div>
+          )}
+
+          {/* Para productos individuales, mostrar opciones si las hay */}
+          {!item.combo && (
+            <div className="pl-4 text-muted-foreground">
+                {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
+                {item.customizations.withIce !== undefined && (
+                  <div>{item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>
+                )}
+            </div>
+          )}
+      </div>
+    );
+  }
 
   const orderId = typeof order.id === 'string' ? order.id.substring(0, 6).toUpperCase() : order.id.toString().padStart(6, '0');
 
@@ -91,8 +128,8 @@ const TicketLayout = ({ order, isKitchen }: { order: Order; isKitchen: boolean }
             <span>{deliveryText[order.deliveryType]}</span>
         </div>
         <div className="flex flex-col items-end">
-            <span>{order.createdAt instanceof Date ? order.createdAt.toLocaleDateString('es-AR') : new Date(order.createdAt.seconds * 1000).toLocaleDateString('es-AR')}</span>
-            <span>{order.createdAt instanceof Date ? order.createdAt.toLocaleTimeString('es-AR') : new Date(order.createdAt.seconds * 1000).toLocaleTimeString('es-AR')}</span>
+            <span>{getOrderDate().toLocaleDateString('es-AR')}</span>
+            <span>{getOrderDate().toLocaleTimeString('es-AR')}</span>
         </div>
       </div>
     </div>

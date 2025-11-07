@@ -46,21 +46,39 @@ export function OrderPanel() {
             </div>
           ) : (
             <div className="flex flex-col gap-4 p-4">
-              {orderItems.map(item => (
+              {orderItems.map(item => {
+                // Determinar el nombre a mostrar
+                const itemName = item.combo
+                  ? item.combo.name
+                  : (item.customizations.product?.name || item.customizations.drink?.name || item.customizations.side?.name || 'Producto');
+
+                return (
                 <div key={item.id} className="flex gap-4">
                   <div className="flex-1">
-                    <p className="font-semibold">{item.combo.name}</p>
+                    <p className="font-semibold">{itemName}</p>
                     {item.appliedDiscount && (
                         <Badge variant="outline" className="text-accent-foreground bg-accent mt-1 -ml-1">
                             {item.appliedDiscount.percentage}% OFF
                         </Badge>
                     )}
-                    <div className="text-xs text-muted-foreground mt-1">
-                        {item.customizations.product && <div>{item.customizations.product.name}</div>}
-                        {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
-                        {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
-                        {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
-                    </div>
+                    {/* Solo mostrar detalles de customización para combos */}
+                    {item.combo && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                          {item.customizations.product && <div>{item.customizations.product.name}</div>}
+                          {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
+                          {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
+                          {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
+                      </div>
+                    )}
+                    {/* Para productos individuales, mostrar opciones si las hay */}
+                    {!item.combo && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                          {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
+                          {item.customizations.withIce !== undefined && item.customizations.drink && (
+                            <div>{item.customizations.withIce ? 'Con hielo' : 'Sin hielo'}</div>
+                          )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateItemQuantity(item.id, item.quantity - 1)}>
@@ -75,7 +93,8 @@ export function OrderPanel() {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>

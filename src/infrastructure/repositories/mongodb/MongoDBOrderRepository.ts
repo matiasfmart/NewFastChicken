@@ -74,15 +74,32 @@ export class MongoDBOrderRepository implements IOrderRepository {
       const productUpdates = new Map<string, number>();
 
       for (const orderItem of order.items) {
-        const { combo, quantity } = orderItem;
+        const { combo, quantity, customizations } = orderItem;
 
-        if (combo.products) {
+        // Manejar combos con productos definidos
+        if (combo && combo.products) {
           for (const productInCombo of combo.products) {
             const currentRequired = productUpdates.get(productInCombo.productId) || 0;
             productUpdates.set(
               productInCombo.productId,
               currentRequired + (productInCombo.quantity * quantity)
             );
+          }
+        }
+
+        // Manejar productos individuales (sin combo)
+        if (!combo && customizations) {
+          if (customizations.product) {
+            const currentRequired = productUpdates.get(customizations.product.id) || 0;
+            productUpdates.set(customizations.product.id, currentRequired + quantity);
+          }
+          if (customizations.drink) {
+            const currentRequired = productUpdates.get(customizations.drink.id) || 0;
+            productUpdates.set(customizations.drink.id, currentRequired + quantity);
+          }
+          if (customizations.side) {
+            const currentRequired = productUpdates.get(customizations.side.id) || 0;
+            productUpdates.set(customizations.side.id, currentRequired + quantity);
           }
         }
       }

@@ -4,7 +4,7 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { Combo, InventoryItem, DiscountRule } from "@/lib/types";
+import type { Combo, InventoryItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
 

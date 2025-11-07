@@ -75,19 +75,38 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     }
   }, [availableProducts, selectedProductId]);
 
-  // Special handling for old generic drink/side combos
-  const genericDrinkType = combo?.type === 'E' ? (combo.id === 'D' ? 'chica' : 'grande') : null;
-  const allDrinks = useMemo(() => allInventory.filter(i => i.type === 'drink'), [allInventory]);
-  const genericDrinks = useMemo(() => genericDrinkType ? allDrinks.filter(d => d.category === genericDrinkType) : [], [genericDrinkType, allDrinks]);
-
-
   const handleSubmit = () => {
+    // Manejar productos individuales (sin combo)
     if(!combo) {
+        const inventoryItem = item as InventoryItem;
+
+        // Verificar stock
+        const stock = getInventoryStock(inventoryItem.id);
+        if (stock <= 0) {
+          toast({ variant: 'destructive', title: "Error", description: 'Producto sin stock disponible.' });
+          return;
+        }
+
+        // Crear OrderItem para producto individual
+        const orderItem: OrderItem = {
+          id: `inv-${inventoryItem.id}-${isSpicy}-${withIce}-${Date.now()}`,
+          combo: null,
+          quantity: 1,
+          unitPrice: inventoryItem.price,
+          finalUnitPrice: inventoryItem.price,
+          customizations: {
+            drink: inventoryItem.type === 'drink' ? inventoryItem : null,
+            side: inventoryItem.type === 'side' ? inventoryItem : null,
+            product: inventoryItem.type === 'product' ? inventoryItem : null,
+            withIce: inventoryItem.type === 'drink' ? withIce : false,
+            isSpicy: inventoryItem.type === 'product' ? isSpicy : false,
+          }
+        };
+
+        addItemToOrder(orderItem);
         onClose();
         return;
     }
-
-    const isGenericDrinkCombo = combo.type === 'E';
 
     // Validations
     if (availableProducts.length > 0 && !selectedProductId) {
@@ -98,23 +117,16 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
         toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione una bebida.' });
         return;
     }
-     if(isGenericDrinkCombo && !selectedDrinkId) {
-        toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione una bebida.' });
-        return;
-    }
     if(availableSides.length > 0 && !selectedSideId) {
         toast({ variant: 'destructive', title: "Error", description: 'Por favor, seleccione una guarnición.' });
         return;
     }
-    
+
     const selectedProduct = allInventory.find(p => p.id === selectedProductId);
     const selectedDrink = allInventory.find(d => d.id === selectedDrinkId);
     const selectedSide = allInventory.find(s => s.id === selectedSideId);
 
-    let price = combo.price;
-    if(isGenericDrinkCombo && selectedDrink){
-        price = selectedDrink.price;
-    }
+    const price = combo.price;
     
     const activeDiscount = getActiveDiscount(combo);
     const finalPrice = activeDiscount ? price * (1 - activeDiscount.percentage / 100) : price;
@@ -170,7 +182,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
           {items.map(i => (
             <div key={i.id} className="flex items-center space-x-2">
               <RadioGroupItem value={i.id} id={i.id} disabled={getInventoryStock(i.id) <= 0} />
-              <Label htmlFor={i.id} className="flex-1 has-[:disabled]:text-muted-foreground">{i.name} {i.price !== combo?.price && combo?.type === 'E' && `($${i.price})`}</Label>
+              <Label htmlFor={i.id} className="flex-1 has-[:disabled]:text-muted-foreground">{i.name}</Label>
               {getStockStatus(i.id)}
             </div>
           ))}
@@ -178,8 +190,61 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     </div>
   )
 
-  if (!combo) return null;
+  // Renderizado para productos individuales (no combos)
+  if (!combo) {
+    const inventoryItem = item as InventoryItem;
+    const stock = getInventoryStock(inventoryItem.id);
+    const noStock = stock <= 0;
 
+    return (
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{inventoryItem.name}</DialogTitle>
+          </DialogHeader>
+          {noStock && <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Sin Stock</AlertTitle>
+              <AlertDescription>Este producto no tiene stock disponible.</AlertDescription>
+          </Alert>}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-muted-foreground">Precio:</span>
+              <span className="text-lg font-bold">${inventoryItem.price}</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Stock disponible:</span>
+              <span className={stock < 10 ? 'text-yellow-600 font-medium' : ''}>{stock} unidades</span>
+            </div>
+
+            {/* Opción de picante solo para productos */}
+            {inventoryItem.type === 'product' && (
+              <div className="flex items-center justify-between pt-2 border-t">
+                <Label htmlFor="is-spicy-individual" className="flex items-center gap-2 font-semibold text-destructive">
+                  <Flame className="h-4 w-4"/> ¿Con picante?
+                </Label>
+                <Switch id="is-spicy-individual" checked={isSpicy} onCheckedChange={setIsSpicy} />
+              </div>
+            )}
+
+            {/* Opción de hielo solo para bebidas */}
+            {inventoryItem.type === 'drink' && (
+              <div className="flex items-center justify-between pt-2 border-t">
+                <Label htmlFor="with-ice-individual" className="font-semibold">¿Con hielo?</Label>
+                <Switch id="with-ice-individual" checked={withIce} onCheckedChange={setWithIce} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={noStock}>Agregar al Pedido</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Renderizado para combos (lógica original)
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-md">
@@ -196,9 +261,8 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
                 {renderOptions('Producto Principal', availableProducts, selectedProductId, setSelectedProductId)}
                 {renderOptions('Guarnición', availableSides, selectedSideId, setSelectedSideId)}
                 {renderOptions('Bebida', availableDrinks, selectedDrinkId, setSelectedDrinkId)}
-                {renderOptions('Bebida', genericDrinks, selectedDrinkId, setSelectedDrinkId)}
-                
-                { (availableDrinks.length > 0 || genericDrinks.length > 0) && (
+
+                { availableDrinks.length > 0 && (
                     <div className="flex items-center justify-between">
                         <Label htmlFor="with-ice" className="font-semibold">¿Con hielo?</Label>
                         <Switch id="with-ice" checked={withIce} onCheckedChange={setWithIce} />

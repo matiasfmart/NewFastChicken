@@ -7,12 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { InventoryItem } from "@/lib/types";
 import { MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Badge } from "../ui/badge";
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface InventoryTabsProps {
   products: InventoryItem[];
@@ -39,10 +37,6 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
         setData(prev => ({...prev, [name]: type === 'number' ? parseFloat(value) || 0 : value }));
     }
 
-    const handleSelectChange = (value: string) => {
-        setData(prev => ({...prev, category: value as 'chica' | 'grande'}));
-    }
-    
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isSaving) return;
@@ -79,20 +73,6 @@ const ItemForm = ({ item, categoryKey, onSave, onCancel }: { item: Partial<Inven
                                 <Input id="stock" name="stock" type="number" value={data.stock} onChange={handleChange} required />
                             </div>
                         </div>
-                        {categoryKey === 'drinks' && (
-                             <div className="space-y-2">
-                                <Label htmlFor="category">Categoría</Label>
-                                <Select name="category" value={data.category} onValueChange={handleSelectChange}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione categoría" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="chica">Chica</SelectItem>
-                                        <SelectItem value="grande">Grande</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
                     </div>
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>Cancelar</Button>
@@ -137,7 +117,6 @@ const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSave
             <TableHeader>
                 <TableRow>
                 <TableHead>Nombre</TableHead>
-                {categoryName === 'Bebida' && <TableHead>Categoría</TableHead>}
                 <TableHead>Stock</TableHead>
                 <TableHead>Precio</TableHead>
                 <TableHead>
@@ -149,7 +128,6 @@ const InventoryTable = ({ items, categoryName, categoryKey, onDeleteItem, onSave
                 {items.map((item) => (
                 <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
-                    {categoryName === 'Bebida' && <TableCell><Badge variant="secondary">{item.category}</Badge></TableCell>}
                     <TableCell>{item.stock}</TableCell>
                     <TableCell>${item.price.toLocaleString('es-AR')}</TableCell>
                     <TableCell>

@@ -129,10 +129,25 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
         setInventoryStock(currentStock => {
             const newStock = {...currentStock};
             for (const orderItem of newOrderData.items) {
-                const { combo, quantity } = orderItem;
-                if (combo.products) {
+                const { combo, quantity, customizations } = orderItem;
+
+                // Manejar combos con productos definidos
+                if (combo && combo.products) {
                     for (const productInCombo of combo.products) {
                         newStock[productInCombo.productId] -= productInCombo.quantity * quantity;
+                    }
+                }
+
+                // Manejar productos individuales (sin combo)
+                if (!combo && customizations) {
+                    if (customizations.product) {
+                        newStock[customizations.product.id] -= quantity;
+                    }
+                    if (customizations.drink) {
+                        newStock[customizations.drink.id] -= quantity;
+                    }
+                    if (customizations.side) {
+                        newStock[customizations.side.id] -= quantity;
                     }
                 }
             }

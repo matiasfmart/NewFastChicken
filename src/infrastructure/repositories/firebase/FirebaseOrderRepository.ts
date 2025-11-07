@@ -45,6 +45,24 @@ export class FirebaseOrderRepository implements IOrderRepository {
     });
   }
 
+  async getByShiftId(shiftId: string): Promise<Order[]> {
+    const ordersQuery = query(
+      collection(this.firestore, this.collectionName),
+      where('shiftId', '==', shiftId)
+    );
+
+    const snapshot = await getDocs(ordersQuery);
+
+    return snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+      } as Order;
+    });
+  }
+
   async getById(id: string): Promise<Order | null> {
     const docRef = doc(this.firestore, this.collectionName, id);
     const docSnap = await getDoc(docRef);
@@ -104,9 +122,10 @@ export class FirebaseOrderRepository implements IOrderRepository {
 
       // Calcular la cantidad total requerida de cada producto
       for (const orderItem of order.items) {
-        const { combo, quantity } = orderItem;
+        const { combo, quantity, customizations } = orderItem;
 
-        if (combo.products) {
+        // Manejar combos con productos definidos
+        if (combo && combo.products) {
           for (const productInCombo of combo.products) {
             const currentRequired = productUpdates.get(productInCombo.productId)?.requiredQuantity || 0;
             const itemRef = doc(this.firestore, this.inventoryCollectionName, productInCombo.productId);
@@ -114,6 +133,39 @@ export class FirebaseOrderRepository implements IOrderRepository {
             productUpdates.set(productInCombo.productId, {
               ref: itemRef,
               requiredQuantity: currentRequired + (productInCombo.quantity * quantity)
+            });
+          }
+        }
+
+        // Manejar productos individuales (sin combo)
+        if (!combo && customizations) {
+          if (customizations.product) {
+            const currentRequired = productUpdates.get(customizations.product.id)?.requiredQuantity || 0;
+            const itemRef = doc(this.firestore, this.inventoryCollectionName, customizations.product.id);
+
+            productUpdates.set(customizations.product.id, {
+              ref: itemRef,
+              requiredQuantity: currentRequired + quantity
+            });
+          }
+
+          if (customizations.drink) {
+            const currentRequired = productUpdates.get(customizations.drink.id)?.requiredQuantity || 0;
+            const itemRef = doc(this.firestore, this.inventoryCollectionName, customizations.drink.id);
+
+            productUpdates.set(customizations.drink.id, {
+              ref: itemRef,
+              requiredQuantity: currentRequired + quantity
+            });
+          }
+
+          if (customizations.side) {
+            const currentRequired = productUpdates.get(customizations.side.id)?.requiredQuantity || 0;
+            const itemRef = doc(this.firestore, this.inventoryCollectionName, customizations.side.id);
+
+            productUpdates.set(customizations.side.id, {
+              ref: itemRef,
+              requiredQuantity: currentRequired + quantity
             });
           }
         }
