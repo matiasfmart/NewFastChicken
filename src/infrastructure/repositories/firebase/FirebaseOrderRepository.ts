@@ -88,11 +88,16 @@ export class FirebaseOrderRepository implements IOrderRepository {
     const cleanItems = order.items.map(item => {
       const cleanedItem = { ...item };
 
-      // Limpiar customizaciones opcionales undefined
+      // Limpiar customizaciones opcionales undefined (pero mantener null y otros valores)
       if (item.customizations) {
         cleanedItem.customizations = Object.fromEntries(
           Object.entries(item.customizations).filter(([_, value]) => value !== undefined)
         ) as any;
+      }
+
+      // Asegurar que combo se mantenga (incluso si es null) para productos individuales
+      if (item.combo === null) {
+        cleanedItem.combo = null;
       }
 
       // Limpiar appliedDiscount si es undefined

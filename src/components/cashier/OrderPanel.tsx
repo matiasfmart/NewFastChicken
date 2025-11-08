@@ -53,44 +53,61 @@ export function OrderPanel() {
                   : (item.customizations.product?.name || item.customizations.drink?.name || item.customizations.side?.name || 'Producto');
 
                 return (
-                <div key={item.id} className="flex gap-4">
-                  <div className="flex-1">
-                    <p className="font-semibold">{itemName}</p>
+                <div key={item.id} className="flex gap-3 pb-3 border-b border-border">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-sm leading-tight">{itemName}</p>
+                      <div className="text-right flex-shrink-0">
+                        {item.appliedDiscount ? (
+                          <div className="flex flex-col items-end">
+                            <span className="text-xs line-through text-muted-foreground">${item.unitPrice.toLocaleString('es-AR')}</span>
+                            <span className="text-sm font-semibold">${item.finalUnitPrice.toLocaleString('es-AR')}</span>
+                          </div>
+                        ) : (
+                          <span className="text-sm font-semibold">${item.finalUnitPrice.toLocaleString('es-AR')}</span>
+                        )}
+                      </div>
+                    </div>
                     {item.appliedDiscount && (
-                        <Badge variant="outline" className="text-accent-foreground bg-accent mt-1 -ml-1">
+                        <Badge variant="outline" className="text-accent-foreground bg-accent mt-1 text-xs">
                             {item.appliedDiscount.percentage}% OFF
                         </Badge>
                     )}
                     {/* Solo mostrar detalles de customización para combos */}
                     {item.combo && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                          {item.customizations.product && <div>{item.customizations.product.name}</div>}
-                          {item.customizations.side && <div>+ {item.customizations.side.name}</div>}
-                          {item.customizations.drink && <div>+ {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
-                          {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
+                      <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                          {item.customizations.product && <div>• {item.customizations.product.name}</div>}
+                          {item.customizations.side && <div>• {item.customizations.side.name}</div>}
+                          {item.customizations.drink && <div>• {item.customizations.drink.name} {item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}</div>}
+                          {item.customizations.isSpicy && <div className="font-semibold text-destructive">⚡ CON PICANTE</div>}
                       </div>
                     )}
                     {/* Para productos individuales, mostrar opciones si las hay */}
                     {!item.combo && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                          {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
+                      <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                          {item.customizations.isSpicy && <div className="font-semibold text-destructive">⚡ CON PICANTE</div>}
                           {item.customizations.withIce !== undefined && item.customizations.drink && (
-                            <div>{item.customizations.withIce ? 'Con hielo' : 'Sin hielo'}</div>
+                            <div>• {item.customizations.withIce ? 'Con hielo' : 'Sin hielo'}</div>
                           )}
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateItemQuantity(item.id, item.quantity - 1)}>
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span>{item.quantity}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateItemQuantity(item.id, item.quantity + 1)}>
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItemFromOrder(item.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1.5 bg-muted rounded-md p-0.5">
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateItemQuantity(item.id, item.quantity - 1)}>
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-sm font-semibold min-w-[1.5rem] text-center">{item.quantity}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateItemQuantity(item.id, item.quantity + 1)}>
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-bold">${(item.finalUnitPrice * item.quantity).toLocaleString('es-AR')}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => removeItemFromOrder(item.id)}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 );

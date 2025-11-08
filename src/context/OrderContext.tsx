@@ -42,7 +42,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   
   const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
-  
+
   useEffect(() => {
     // Initialize stock from the server-provided inventory
     const stock = initialInventory.reduce((acc, item) => {

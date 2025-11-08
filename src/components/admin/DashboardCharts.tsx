@@ -40,14 +40,14 @@ export function DashboardCharts({ comboSalesData, chartData, deliveryData, total
       {/* Tabla de ventas por combo */}
       <Card>
         <CardHeader>
-          <CardTitle>Ventas por Combo</CardTitle>
-          <CardDescription>Resumen de ventas para cada combo.</CardDescription>
+          <CardTitle>Ventas por Producto</CardTitle>
+          <CardDescription>Resumen de ventas para cada producto.</CardDescription>
         </CardHeader>
         <CardContent className="max-h-96 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Combo</TableHead>
+                <TableHead>Producto</TableHead>
                 <TableHead className="text-right">Ventas</TableHead>
                 <TableHead className="text-right">Ingresos</TableHead>
                 <TableHead className="text-right">% Total</TableHead>
@@ -73,7 +73,7 @@ export function DashboardCharts({ comboSalesData, chartData, deliveryData, total
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Top 5 Combos Más Vendidos</CardTitle>
+            <CardTitle>Top 5 Productos Más Vendidos</CardTitle>
             <CardDescription>Los 5 combos con mayor cantidad de ventas.</CardDescription>
           </CardHeader>
           <CardContent>

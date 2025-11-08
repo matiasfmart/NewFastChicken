@@ -88,6 +88,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
         }
 
         // Crear OrderItem para producto individual
+        // Nota: Incluimos Date.now() para que cada adición sea única
         const orderItem: OrderItem = {
           id: `inv-${inventoryItem.id}-${isSpicy}-${withIce}-${Date.now()}`,
           combo: null,
@@ -95,9 +96,9 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
           unitPrice: inventoryItem.price,
           finalUnitPrice: inventoryItem.price,
           customizations: {
-            drink: inventoryItem.type === 'drink' ? inventoryItem : null,
-            side: inventoryItem.type === 'side' ? inventoryItem : null,
-            product: inventoryItem.type === 'product' ? inventoryItem : null,
+            drink: inventoryItem.type === 'drink' ? inventoryItem : undefined,
+            side: inventoryItem.type === 'side' ? inventoryItem : undefined,
+            product: inventoryItem.type === 'product' ? inventoryItem : undefined,
             withIce: inventoryItem.type === 'drink' ? withIce : false,
             isSpicy: inventoryItem.type === 'product' ? isSpicy : false,
           }
@@ -139,8 +140,9 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
         isSpicy: isSpicy,
     }
 
+    // Incluimos Date.now() para que cada adición sea única
     const orderItem: OrderItem = {
-      id: `${combo.id}-${selectedProductId}-${selectedDrinkId}-${selectedSideId}-${isSpicy}-${withIce}`,
+      id: `${combo.id}-${selectedProductId}-${selectedDrinkId}-${selectedSideId}-${isSpicy}-${withIce}-${Date.now()}`,
       combo: combo,
       quantity: 1,
       unitPrice: price,
