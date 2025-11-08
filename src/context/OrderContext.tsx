@@ -22,6 +22,8 @@ interface OrderContextType {
   clearOrder: () => void;
   setDeliveryType: (type: DeliveryType) => void;
   getInventoryStock: (itemId: string) => number;
+  getAvailableStock: (itemId: string) => number;
+  checkStockForNewItem: (newItem: OrderItem) => { hasStock: boolean; missingProducts: string[] };
   finalizeOrder: () => Promise<Order | null>;
   startNewShift: () => void;
 }
@@ -54,6 +56,108 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
 
 
   const getInventoryStock = useCallback((itemId: string) => inventoryStock[itemId] ?? 0, [inventoryStock]);
+
+  // Calcula cuánto stock está siendo usado en el carrito actual
+  const getUsedStock = useCallback((itemId: string): number => {
+    let usedQuantity = 0;
+
+    for (const orderItem of orderItems) {
+      const { combo, quantity, customizations } = orderItem;
+
+      // Para combos, sumar productos del combo
+      if (combo && combo.products) {
+        for (const productInCombo of combo.products) {
+          if (productInCombo.productId === itemId) {
+            usedQuantity += productInCombo.quantity * quantity;
+          }
+        }
+      }
+
+      // Para productos individuales
+      if (!combo && customizations) {
+        if (customizations.product?.id === itemId) {
+          usedQuantity += quantity;
+        }
+        if (customizations.drink?.id === itemId) {
+          usedQuantity += quantity;
+        }
+        if (customizations.side?.id === itemId) {
+          usedQuantity += quantity;
+        }
+      }
+    }
+
+    return usedQuantity;
+  }, [orderItems]);
+
+  // Retorna el stock disponible (stock total - stock en carrito)
+  const getAvailableStock = useCallback((itemId: string): number => {
+    const totalStock = getInventoryStock(itemId);
+    const usedStock = getUsedStock(itemId);
+    return Math.max(0, totalStock - usedStock);
+  }, [getInventoryStock, getUsedStock]);
+
+  // Verifica si hay suficiente stock para agregar un nuevo item
+  const checkStockForNewItem = useCallback((newItem: OrderItem): { hasStock: boolean; missingProducts: string[] } => {
+    const requiredProducts = new Map<string, { name: string; required: number; available: number }>();
+
+    const { combo, quantity, customizations } = newItem;
+
+    // Calcular productos necesarios
+    if (combo && combo.products) {
+      for (const productInCombo of combo.products) {
+        const available = getAvailableStock(productInCombo.productId);
+        const required = productInCombo.quantity * quantity;
+        const product = inventory.find(p => p.id === productInCombo.productId);
+
+        requiredProducts.set(productInCombo.productId, {
+          name: product?.name || 'Producto desconocido',
+          required,
+          available
+        });
+      }
+    }
+
+    if (!combo && customizations) {
+      if (customizations.product) {
+        const available = getAvailableStock(customizations.product.id);
+        requiredProducts.set(customizations.product.id, {
+          name: customizations.product.name,
+          required: quantity,
+          available
+        });
+      }
+      if (customizations.drink) {
+        const available = getAvailableStock(customizations.drink.id);
+        requiredProducts.set(customizations.drink.id, {
+          name: customizations.drink.name,
+          required: quantity,
+          available
+        });
+      }
+      if (customizations.side) {
+        const available = getAvailableStock(customizations.side.id);
+        requiredProducts.set(customizations.side.id, {
+          name: customizations.side.name,
+          required: quantity,
+          available
+        });
+      }
+    }
+
+    // Verificar si hay stock suficiente
+    const missingProducts: string[] = [];
+    for (const [_, data] of requiredProducts.entries()) {
+      if (data.available < data.required) {
+        missingProducts.push(`${data.name} (Disponible: ${data.available}, Necesario: ${data.required})`);
+      }
+    }
+
+    return {
+      hasStock: missingProducts.length === 0,
+      missingProducts
+    };
+  }, [getAvailableStock, inventory]);
 
   const addItemToOrder = (newItem: OrderItem) => {
     setOrderItems((prevItems) => {
@@ -183,6 +287,8 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
         clearOrder,
         setDeliveryType,
         getInventoryStock,
+        getAvailableStock,
+        checkStockForNewItem,
         finalizeOrder,
         startNewShift
       }}

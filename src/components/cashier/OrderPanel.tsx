@@ -11,10 +11,12 @@ import { DeliveryTypeSelector } from '../icons/DeliveryIcons';
 import { CheckoutDialog } from './CheckoutDialog';
 import type { Order } from '@/lib/types';
 import { Badge } from '../ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 export function OrderPanel() {
-  const { orderItems, updateItemQuantity, removeItemFromOrder, clearOrder, deliveryType, setDeliveryType, finalizeOrder, currentOrderNumber } = useOrder();
+  const { orderItems, updateItemQuantity, removeItemFromOrder, clearOrder, deliveryType, setDeliveryType, finalizeOrder, currentOrderNumber, checkStockForNewItem } = useOrder();
   const [finalizedOrder, setFinalizedOrder] = React.useState<Order | null>(null);
+  const { toast } = useToast();
   
   const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
   const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
@@ -30,6 +32,23 @@ export function OrderPanel() {
   const handleCloseCheckout = () => {
     setFinalizedOrder(null);
     // Order is cleared inside context now
+  }
+
+  const handleIncreaseQuantity = (item: typeof orderItems[0]) => {
+    // Crear un item temporal con la cantidad incrementada para verificar stock
+    const tempItem = { ...item, quantity: 1 }; // Solo verificamos el incremento de 1 unidad
+    const stockCheck = checkStockForNewItem(tempItem);
+
+    if (!stockCheck.hasStock) {
+      toast({
+        variant: 'destructive',
+        title: "Stock insuficiente",
+        description: stockCheck.missingProducts.join('\n')
+      });
+      return;
+    }
+
+    updateItemQuantity(item.id, item.quantity + 1);
   }
 
   return (
@@ -98,7 +117,7 @@ export function OrderPanel() {
                         <Minus className="h-3 w-3" />
                       </Button>
                       <span className="text-sm font-semibold min-w-[1.5rem] text-center">{item.quantity}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateItemQuantity(item.id, item.quantity + 1)}>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleIncreaseQuantity(item)}>
                         <Plus className="h-3 w-3" />
                       </Button>
                     </div>

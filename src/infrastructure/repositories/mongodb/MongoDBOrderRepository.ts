@@ -115,7 +115,7 @@ export class MongoDBOrderRepository implements IOrderRepository {
         }
 
         if (product.stock < requiredQuantity) {
-          throw new Error(`No hay suficiente stock para: ${product.name}.`);
+          throw new Error(`Stock insuficiente para "${product.name}". Disponible: ${product.stock}, Requerido: ${requiredQuantity}`);
         }
 
         // Actualizar el stock

@@ -35,7 +35,7 @@ const getActiveDiscount = (combo: Combo): { rule: DiscountRule, percentage: numb
 }
 
 export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean; onClose: () => void; item: Combo | InventoryItem; }) {
-  const { addItemToOrder, getInventoryStock, inventory: allInventory } = useOrder();
+  const { addItemToOrder, getInventoryStock, getAvailableStock, checkStockForNewItem, inventory: allInventory } = useOrder();
   const { toast } = useToast();
 
   const isCombo = 'products' in item;
@@ -80,13 +80,6 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     if(!combo) {
         const inventoryItem = item as InventoryItem;
 
-        // Verificar stock
-        const stock = getInventoryStock(inventoryItem.id);
-        if (stock <= 0) {
-          toast({ variant: 'destructive', title: "Error", description: 'Producto sin stock disponible.' });
-          return;
-        }
-
         // Crear OrderItem para producto individual
         // Nota: Incluimos Date.now() para que cada adición sea única
         const orderItem: OrderItem = {
@@ -103,6 +96,17 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
             isSpicy: inventoryItem.type === 'product' ? isSpicy : false,
           }
         };
+
+        // Verificar stock disponible considerando el carrito actual
+        const stockCheck = checkStockForNewItem(orderItem);
+        if (!stockCheck.hasStock) {
+          toast({
+            variant: 'destructive',
+            title: "Stock insuficiente",
+            description: stockCheck.missingProducts.join('\n')
+          });
+          return;
+        }
 
         addItemToOrder(orderItem);
         onClose();
@@ -151,15 +155,26 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
       customizations
     };
 
+    // Verificar stock disponible considerando el carrito actual
+    const stockCheck = checkStockForNewItem(orderItem);
+    if (!stockCheck.hasStock) {
+      toast({
+        variant: 'destructive',
+        title: "Stock insuficiente",
+        description: stockCheck.missingProducts.join('\n')
+      });
+      return;
+    }
+
     addItemToOrder(orderItem);
     onClose();
   };
   
   const getStockStatus = (itemId: string) => {
-      const stock = getInventoryStock(itemId);
+      const stock = getAvailableStock(itemId);
       if (stock === undefined) return null; // Still loading
       if (stock <= 0) return <span className="ml-2 text-xs text-destructive">(Sin Stock)</span>;
-      if (stock < 10) return <span className="ml-2 text-xs text-yellow-600">(Stock bajo)</span>;
+      if (stock < 10) return <span className="ml-2 text-xs text-yellow-600">(Stock: {stock})</span>;
       return null;
   }
 
@@ -167,15 +182,15 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
       if(!combo || !combo.products || allInventory.length === 0) return null;
       const lowStockItems = combo.products
         .map(p => ({ item: allInventory.find(i => i.id === p.productId), requiredQty: p.quantity }))
-        .filter(data => data.item && getInventoryStock(data.item.id) < data.requiredQty)
+        .filter(data => data.item && getAvailableStock(data.item.id) < data.requiredQty)
         .map(data => data.item!.name)
         .filter(Boolean);
-      
+
       if(lowStockItems.length > 0) {
           return `Atención: No hay stock suficiente para: ${lowStockItems.join(', ')}`;
       }
       return null;
-  }, [combo, getInventoryStock, allInventory])
+  }, [combo, getAvailableStock, allInventory])
 
   const renderOptions = (title: string, items: InventoryItem[], selectedId: string | null, onSelect: (id: string) => void) => (
     items.length > 0 && <div className="space-y-2">
@@ -183,7 +198,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
       <RadioGroup value={selectedId || undefined} onValueChange={onSelect}>
           {items.map(i => (
             <div key={i.id} className="flex items-center space-x-2">
-              <RadioGroupItem value={i.id} id={i.id} disabled={getInventoryStock(i.id) <= 0} />
+              <RadioGroupItem value={i.id} id={i.id} disabled={getAvailableStock(i.id) <= 0} />
               <Label htmlFor={i.id} className="flex-1 has-[:disabled]:text-muted-foreground">{i.name}</Label>
               {getStockStatus(i.id)}
             </div>
@@ -195,8 +210,8 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
   // Renderizado para productos individuales (no combos)
   if (!combo) {
     const inventoryItem = item as InventoryItem;
-    const stock = getInventoryStock(inventoryItem.id);
-    const noStock = stock <= 0;
+    const availableStock = getAvailableStock(inventoryItem.id);
+    const noStock = availableStock <= 0;
 
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -207,7 +222,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
           {noStock && <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Sin Stock</AlertTitle>
-              <AlertDescription>Este producto no tiene stock disponible.</AlertDescription>
+              <AlertDescription>Este producto no tiene stock disponible en este momento.</AlertDescription>
           </Alert>}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -216,7 +231,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Stock disponible:</span>
-              <span className={stock < 10 ? 'text-yellow-600 font-medium' : ''}>{stock} unidades</span>
+              <span className={availableStock < 10 ? 'text-yellow-600 font-medium' : ''}>{availableStock} unidades</span>
             </div>
 
             {/* Opción de picante solo para productos */}
