@@ -7,6 +7,7 @@ import type { CreateOrderDTO } from "@/dtos";
 import { useToast } from "@/hooks/use-toast";
 import { OrderAPI, ShiftAPI } from "@/api";
 import { useShift } from "./ShiftContext";
+import { DiscountService } from "@/domain/services/DiscountService";
 
 interface OrderContextType {
   orderItems: OrderItem[];
@@ -158,6 +159,34 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
       missingProducts
     };
   }, [getAvailableStock, inventory]);
+
+  // Recalcular descuentos promocionales cuando cambia el carrito
+  // NOTA: Esta funcionalidad está comentada temporalmente para evitar loops infinitos
+  // Se activará cuando se implementen los descuentos promocionales desde el admin
+  /*
+  useEffect(() => {
+    if (orderItems.length === 0) return;
+
+    // Aplicar descuentos promocionales (quantity y cross-promotion)
+    const itemsWithPromotionalDiscounts = DiscountService.applyPromotionalDiscounts(
+      orderItems,
+      combos
+    );
+
+    // Solo actualizar si hubo cambios en los descuentos
+    const hasChanges = itemsWithPromotionalDiscounts.some((newItem, index) => {
+      const oldItem = orderItems[index];
+      return (
+        newItem.finalUnitPrice !== oldItem.finalUnitPrice ||
+        newItem.appliedDiscount?.percentage !== oldItem.appliedDiscount?.percentage
+      );
+    });
+
+    if (hasChanges) {
+      setOrderItems(itemsWithPromotionalDiscounts);
+    }
+  }, [orderItems.length, combos]);
+  */
 
   const addItemToOrder = (newItem: OrderItem) => {
     setOrderItems((prevItems) => {

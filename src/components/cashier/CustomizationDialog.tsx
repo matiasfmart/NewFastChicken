@@ -2,9 +2,9 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Combo, InventoryItem, OrderItem, DiscountRule } from '@/lib/types';
+import type { Combo, InventoryItem, OrderItem } from '@/lib/types';
 import { useOrder } from '@/context/OrderContext';
-import { format } from 'date-fns';
+import { DiscountService } from '@/domain/services/DiscountService';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -16,26 +16,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertCircle, Flame } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const getActiveDiscount = (combo: Combo): { rule: DiscountRule, percentage: number} | null => {
-    if (!combo.discounts || combo.discounts.length === 0) return null;
-
-    const today = new Date();
-    const todayWeekday = today.getDay().toString();
-    const todayDate = format(today, 'yyyy-MM-dd');
-
-    for (const rule of combo.discounts) {
-        if (rule.type === 'weekday' && rule.value === todayWeekday) {
-            return { rule, percentage: rule.percentage };
-        }
-        if (rule.type === 'date' && rule.value === todayDate) {
-            return { rule, percentage: rule.percentage };
-        }
-    }
-    return null;
-}
-
 export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean; onClose: () => void; item: Combo | InventoryItem; }) {
-  const { addItemToOrder, getInventoryStock, getAvailableStock, checkStockForNewItem, inventory: allInventory } = useOrder();
+  const { addItemToOrder, getAvailableStock, checkStockForNewItem, inventory: allInventory } = useOrder();
   const { toast } = useToast();
 
   const isCombo = 'products' in item;
@@ -132,8 +114,9 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     const selectedSide = allInventory.find(s => s.id === selectedSideId);
 
     const price = combo.price;
-    
-    const activeDiscount = getActiveDiscount(combo);
+
+    // Usar el servicio de descuentos para obtener el descuento activo (incluyendo validación de horario)
+    const activeDiscount = DiscountService.getActiveDiscountForCombo(combo);
     const finalPrice = activeDiscount ? price * (1 - activeDiscount.percentage / 100) : price;
 
     const customizations = {

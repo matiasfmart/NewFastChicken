@@ -16,13 +16,29 @@ export interface ComboProduct {
   quantity: number;
 }
 
-export type DiscountRuleType = 'weekday' | 'date';
+export type DiscountRuleType = 'weekday' | 'date' | 'quantity' | 'cross-promotion';
 
 export interface DiscountRule {
     id: string;
     type: DiscountRuleType;
-    value: string; // e.g., '1' for Monday, or '2024-12-25' for a specific date
     percentage: number;
+
+    // Para descuentos por día de la semana o fecha específica
+    value?: string; // e.g., '1' for Monday, or '2024-12-25' for a specific date
+
+    // Restricción de horario (opcional) - formato "HH:MM-HH:MM" e.g., "18:00-22:00"
+    timeRange?: {
+        start: string; // "HH:MM"
+        end: string;   // "HH:MM"
+    };
+
+    // Para descuentos por cantidad: "Compra 2, el 2do tiene X% descuento"
+    requiredQuantity?: number;      // Cantidad mínima para activar descuento
+    discountedQuantity?: number;    // Cuántas unidades reciben descuento (por cada grupo de requiredQuantity)
+
+    // Para promociones cruzadas: "Compra combo A, el combo B tiene descuento"
+    triggerComboId?: string;        // ID del combo que activa el descuento
+    targetComboId?: string;         // ID del combo que recibe el descuento (si no se especifica, aplica al mismo combo)
 }
 
 export interface Combo {
