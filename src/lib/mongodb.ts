@@ -3,6 +3,7 @@
  *
  * Singleton para manejar la conexión a MongoDB de forma eficiente
  * Reutiliza la misma conexión en desarrollo (hot reload)
+ * NO se conecta durante la fase de build
  */
 
 import { MongoClient, Db } from 'mongodb';
@@ -18,8 +19,51 @@ declare global {
 let clientPromise: Promise<MongoClient>;
 let db: Db | undefined;
 
-if (process.env.NODE_ENV === 'development') {
-  // En desarrollo, usar una variable global para preservar el cliente durante hot reload
+// ✅ NO conectar a MongoDB durante el build
+if (process.env.NEXT_PHASE === "phase-production-build") {
+  console.log("[MongoDB] Build phase detected - using mock client");
+
+  // Mock client para satisfacer el build sin conectarse
+  clientPromise = Promise.resolve({
+    db: () => ({
+      collection: () => ({
+        find: () => ({
+          toArray: async () => [],
+          limit: () => ({ toArray: async () => [] }),
+          skip: () => ({ toArray: async () => [] }),
+          sort: () => ({ toArray: async () => [] }),
+        }),
+        findOne: async () => null,
+        insertOne: async () => ({ insertedId: "mock", acknowledged: true }),
+        insertMany: async () => ({
+          insertedIds: {},
+          insertedCount: 0,
+          acknowledged: true,
+        }),
+        updateOne: async () => ({
+          modifiedCount: 0,
+          matchedCount: 0,
+          acknowledged: true,
+          upsertedId: null,
+          upsertedCount: 0,
+        }),
+        updateMany: async () => ({
+          modifiedCount: 0,
+          matchedCount: 0,
+          acknowledged: true,
+          upsertedId: null,
+          upsertedCount: 0,
+        }),
+        deleteOne: async () => ({ deletedCount: 0, acknowledged: true }),
+        deleteMany: async () => ({ deletedCount: 0, acknowledged: true }),
+        countDocuments: async () => 0,
+        aggregate: () => ({ toArray: async () => [] }),
+      }),
+    }),
+    close: async () => {},
+  } as any);
+} else if (process.env.NODE_ENV === 'development') {
+  // En desarrollo, usar una variable global para preservar el cliente durante hot reload (HMR)
   if (!global._mongoClientPromise) {
     const client = new MongoClient(mongoDBConfig.uri, mongoDBConfig.options);
     global._mongoClientPromise = client.connect();

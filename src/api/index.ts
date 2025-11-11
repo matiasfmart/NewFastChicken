@@ -6,3 +6,4 @@ export { ComboAPI } from './combos';
 export { InventoryAPI } from './inventory';
 export { ShiftAPI } from './shifts';
 export { EmployeeAPI } from './employees';
+export { DiscountAPI } from './discounts';

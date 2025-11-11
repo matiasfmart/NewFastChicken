@@ -5,9 +5,9 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MoreHorizontal, PlusCircle, Trash2, Tag, Calendar as CalendarIcon, Pencil } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import type { Combo, ComboProduct, DiscountRule, DiscountRuleType, InventoryItem } from '@/lib/types';
+import type { Combo, ComboProduct, InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -15,133 +15,17 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar } from '@/components/ui/calendar';
-import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ComboAPI, InventoryAPI } from '@/api';
 
-const weekdays = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-function DiscountRuleForm({ rule, onSave, onCancel }: { rule: Partial<DiscountRule>, onSave: (rule: DiscountRule) => void, onCancel: () => void}) {
-    const [type, setType] = useState<DiscountRuleType>(rule?.type || 'weekday');
-    const [value, setValue] = useState(rule?.value || '0');
-    const [percentage, setPercentage] = useState(rule?.percentage || 10);
-    const [date, setDate] = useState<Date | undefined>(rule?.type === 'date' && rule.value ? new Date(rule.value) : undefined);
-
-    const handleSave = () => {
-        if (type === 'date' && !date) {
-            // Or show an error toast
-            return;
-        }
-        const finalValue = type === 'date' ? format(date!, 'yyyy-MM-dd') : value;
-        onSave({ id: rule?.id || `dr-${Date.now()}`, type, value: finalValue, percentage });
-    }
-
-    return (
-       <Dialog open={true} onOpenChange={(open) => !open && onCancel()}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{rule?.id ? 'Editar' : 'Nueva'} Regla de Descuento</DialogTitle>
-                <DialogDescription>Defina los detalles para el descuento automático.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                    <Label>Tipo de Regla</Label>
-                    <Select value={type} onValueChange={(v) => setType(v as DiscountRuleType)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="weekday">Día de la semana</SelectItem>
-                            <SelectItem value="date">Fecha específica</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                {type === 'weekday' && (
-                    <div className="space-y-2">
-                        <Label>Día</Label>
-                        <Select value={value} onValueChange={setValue}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                {weekdays.map((day, i) => <SelectItem key={i} value={String(i)}>{day}</SelectItem>)}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                )}
-                {type === 'date' && (
-                    <div className="space-y-2">
-                        <Label>Fecha</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                            <Button
-                                variant={"outline"}
-                                type="button"
-                                className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !date && "text-muted-foreground"
-                                )}
-                            >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {date ? format(date, "PPP") : <span>Elija una fecha</span>}
-                            </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                            <Calendar
-                                mode="single"
-                                selected={date}
-                                onSelect={setDate}
-                                initialFocus
-                            />
-                            </PopoverContent>
-                        </Popover>
-                    </div>
-                )}
-                <div className="space-y-2">
-                    <Label>Porcentaje de Descuento (%)</Label>
-                    <Input type="number" value={percentage} onChange={(e) => setPercentage(Number(e.target.value))} min="1" max="100"/>
-                </div>
-            </div>
-            <DialogFooter>
-                <Button variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button onClick={handleSave} disabled={type === 'date' && !date}>Guardar Regla</Button>
-            </DialogFooter>
-        </DialogContent>
-       </Dialog>
-    )
-}
-
-
 function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => Promise<void>, onCancel: () => void, inventoryItems: InventoryItem[] }) {
   const [formData, setFormData] = useState<Partial<Combo> | null>(null);
-  const [isRuleFormOpen, setRuleFormOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<Partial<DiscountRule> | null>(null);
 
   useEffect(() => {
     if(combo) {
         setFormData(JSON.parse(JSON.stringify(combo)));
     }
   }, [combo]);
-  
-  const openRuleForm = (rule: Partial<DiscountRule>) => {
-    setEditingRule(rule);
-    setRuleFormOpen(true);
-  };
-
-  const handleSaveRule = (rule: DiscountRule) => {
-    if (formData) {
-        const updatedDiscounts = [...(formData.discounts || [])];
-        const existingIndex = updatedDiscounts.findIndex(d => d.id === rule.id);
-        if (existingIndex > -1) {
-            updatedDiscounts[existingIndex] = rule;
-        } else {
-            updatedDiscounts.push(rule);
-        }
-        setFormData(prev => prev ? ({ ...prev, discounts: updatedDiscounts }) : null);
-    }
-    setRuleFormOpen(false);
-    setEditingRule(null);
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -177,25 +61,6 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
     }
   };
   
-  const getDiscountDisplay = (rule: DiscountRule) => {
-    if (rule.type === 'weekday') {
-        return `Día: ${weekdays[Number(rule.value)]}`;
-    }
-    if (rule.type === 'date') {
-        try {
-            return `Fecha: ${format(new Date(rule.value), "PPP")}`;
-        } catch {
-            return `Fecha: ${rule.value}`
-        }
-    }
-    return '';
-  }
-
-  const removeRule = (ruleId: string) => {
-    if (!formData) return;
-    setFormData(prev => prev ? ({...prev, discounts: prev.discounts?.filter(d => d.id !== ruleId)}) : null);
-  }
-  
   if (!formData) return null;
 
   return (
@@ -206,7 +71,7 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
             <DialogHeader>
                 <DialogTitle>{combo?.id && combo.name ? 'Editar Combo' : 'Crear Nuevo Combo'}</DialogTitle>
                 <DialogDescription>
-                    Complete los detalles, seleccione los productos y gestione los descuentos para el combo.
+                    Complete los detalles y seleccione los productos para el combo.
                 </DialogDescription>
             </DialogHeader>
             <ScrollArea className="overflow-auto -mx-6 px-6 h-[60vh]">
@@ -254,31 +119,6 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
                         ))}
                     </div>
                 </div>
-                <div className="space-y-4">
-                     <div className="flex justify-between items-center mb-2">
-                        <Label>Reglas de Descuento</Label>
-                        <Button type="button" size="sm" variant="outline" onClick={() => openRuleForm({})}><Tag className="mr-2 h-4 w-4" />Añadir Regla</Button>
-                    </div>
-                    <div className="space-y-2">
-                        {formData.discounts?.map((rule) => (
-                            <div key={rule.id} className="flex items-center gap-2 p-2 border rounded-md">
-                            <div className="flex-1">
-                                <p className="font-semibold">{rule.percentage}% OFF</p>
-                                <p className="text-sm text-muted-foreground">{getDiscountDisplay(rule)}</p>
-                            </div>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => openRuleForm(rule)}>
-                                <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => removeRule(rule.id)} className="text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                            </div>
-                        ))}
-                        {(!formData.discounts || formData.discounts.length === 0) && (
-                            <p className="text-sm text-muted-foreground text-center py-2">No hay reglas de descuento para este combo.</p>
-                        )}
-                    </div>
-                </div>
                 </div>
             </ScrollArea>
             <DialogFooter>
@@ -288,13 +128,6 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
         </form>
     </DialogContent>
     </Dialog>
-    {isRuleFormOpen && editingRule && (
-        <DiscountRuleForm 
-            rule={editingRule} 
-            onSave={handleSaveRule} 
-            onCancel={() => { setRuleFormOpen(false); setEditingRule(null); }}
-        />
-    )}
     </>
   );
 }
@@ -339,7 +172,6 @@ export default function CombosPage() {
       description: '',
       price: 0,
       products: [],
-      discounts: [],
     });
     setFormOpen(true);
   };
@@ -392,27 +224,13 @@ export default function CombosPage() {
     setFormOpen(false);
     setEditingCombo(null);
   }
-  
-  const getDiscountDisplay = (rule: DiscountRule) => {
-    if (rule.type === 'weekday') {
-        return `${rule.percentage}% los ${weekdays[Number(rule.value)]}`;
-    }
-    if (rule.type === 'date') {
-        try {
-            return `${rule.percentage}% el ${format(new Date(rule.value), "dd/MM/yy")}`;
-        } catch {
-            return `${rule.percentage}% el ${rule.value}`;
-        }
-    }
-    return `${rule.percentage}%`;
-  }
 
   return (
     <>
     <Card>
       <CardHeader>
         <CardTitle>Gestión de Combos</CardTitle>
-        <CardDescription>Cree, edite y elimine los combos del menú y sus descuentos.</CardDescription>
+        <CardDescription>Cree, edite y elimine los combos del menú.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="mb-4 text-right">
@@ -431,7 +249,6 @@ export default function CombosPage() {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Productos</TableHead>
                 <TableHead>Precio Base</TableHead>
-                <TableHead>Descuentos</TableHead>
                 <TableHead>
                     <span className="sr-only">Acciones</span>
                 </TableHead>
@@ -451,13 +268,6 @@ export default function CombosPage() {
                         </div>
                     </TableCell>
                     <TableCell>${combo.price.toLocaleString('es-AR')}</TableCell>
-                    <TableCell>
-                        <div className="flex flex-col gap-1">
-                            {combo.discounts?.map(d => (
-                                <Badge key={d.id} variant="secondary">{getDiscountDisplay(d)}</Badge>
-                            ))}
-                        </div>
-                    </TableCell>
                     <TableCell>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

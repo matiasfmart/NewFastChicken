@@ -9,3 +9,4 @@ export { MongoDBComboRepository } from './MongoDBComboRepository';
 export { MongoDBOrderRepository } from './MongoDBOrderRepository';
 export { MongoDBShiftRepository } from './MongoDBShiftRepository';
 export { MongoDBEmployeeRepository } from './MongoDBEmployeeRepository';
+export { MongoDBDiscountRepository } from './MongoDBDiscountRepository';

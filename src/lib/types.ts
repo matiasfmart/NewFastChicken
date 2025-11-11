@@ -16,29 +16,38 @@ export interface ComboProduct {
   quantity: number;
 }
 
-export type DiscountRuleType = 'weekday' | 'date' | 'quantity' | 'cross-promotion';
+// Tipo de descuento (lógica de negocio)
+export type DiscountRuleType = 'quantity' | 'cross-promotion' | 'simple';
+
+// Tipo temporal (cuándo aplica) - OBLIGATORIO para todos los descuentos
+export type TemporalType = 'weekday' | 'date';
 
 export interface DiscountRule {
     id: string;
     type: DiscountRuleType;
     percentage: number;
 
-    // Para descuentos por día de la semana o fecha específica
-    value?: string; // e.g., '1' for Monday, or '2024-12-25' for a specific date
+    // ✅ Alcance del descuento
+    appliesTo: 'order' | 'combos';  // 'order' = total de la compra, 'combos' = combos específicos
+    comboIds?: string[];            // IDs de los combos a los que aplica (solo cuando appliesTo === 'combos')
 
-    // Restricción de horario (opcional) - formato "HH:MM-HH:MM" e.g., "18:00-22:00"
+    // ✅ OBLIGATORIO: Condición temporal (todos los descuentos deben tener una fecha/día)
+    temporalType: TemporalType;     // 'weekday' = día de semana, 'date' = fecha específica
+    value: string;                  // Día (0-6 para weekday) o Fecha (YYYY-MM-DD para date)
+
+    // ✅ OPCIONAL: Restricción de horario (aplica además de la fecha/día)
     timeRange?: {
         start: string; // "HH:MM"
         end: string;   // "HH:MM"
     };
 
-    // Para descuentos por cantidad: "Compra 2, el 2do tiene X% descuento"
+    // Para descuentos por cantidad: "Compra N, paga M"
     requiredQuantity?: number;      // Cantidad mínima para activar descuento
     discountedQuantity?: number;    // Cuántas unidades reciben descuento (por cada grupo de requiredQuantity)
 
     // Para promociones cruzadas: "Compra combo A, el combo B tiene descuento"
     triggerComboId?: string;        // ID del combo que activa el descuento
-    targetComboId?: string;         // ID del combo que recibe el descuento (si no se especifica, aplica al mismo combo)
+    targetComboId?: string;         // ID del combo que recibe el descuento
 }
 
 export interface Combo {

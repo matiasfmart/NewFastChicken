@@ -161,9 +161,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   }, [getAvailableStock, inventory]);
 
   // Recalcular descuentos promocionales cuando cambia el carrito
-  // NOTA: Esta funcionalidad está comentada temporalmente para evitar loops infinitos
-  // Se activará cuando se implementen los descuentos promocionales desde el admin
-  /*
+  // ✅ ACTIVADO: Aplica descuentos de tipo quantity y cross-promotion automáticamente
   useEffect(() => {
     if (orderItems.length === 0) return;
 
@@ -173,20 +171,23 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
       combos
     );
 
-    // Solo actualizar si hubo cambios en los descuentos
+    // Solo actualizar si hubo cambios REALES en los descuentos
+    // Compara profundamente para evitar loops infinitos
     const hasChanges = itemsWithPromotionalDiscounts.some((newItem, index) => {
       const oldItem = orderItems[index];
-      return (
-        newItem.finalUnitPrice !== oldItem.finalUnitPrice ||
-        newItem.appliedDiscount?.percentage !== oldItem.appliedDiscount?.percentage
-      );
+      if (!oldItem) return true;
+
+      const priceChanged = newItem.finalUnitPrice !== oldItem.finalUnitPrice;
+      const discountChanged = newItem.appliedDiscount?.percentage !== oldItem.appliedDiscount?.percentage;
+      const discountRuleChanged = newItem.appliedDiscount?.rule.id !== oldItem.appliedDiscount?.rule.id;
+
+      return priceChanged || discountChanged || discountRuleChanged;
     });
 
     if (hasChanges) {
       setOrderItems(itemsWithPromotionalDiscounts);
     }
-  }, [orderItems.length, combos]);
-  */
+  }, [orderItems, combos]);
 
   const addItemToOrder = (newItem: OrderItem) => {
     setOrderItems((prevItems) => {
