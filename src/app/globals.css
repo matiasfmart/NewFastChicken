@@ -82,3 +82,94 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Print Styles - Optimized for 80mm thermal printers */
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 0;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide everything by default when printing */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Only show elements marked for printing */
+  .print-content,
+  .print-content * {
+    visibility: visible;
+  }
+
+  .print-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    background: white;
+  }
+
+  /* Hide non-printable elements */
+  header,
+  nav,
+  aside,
+  footer,
+  .no-print,
+  button,
+  .dialog-footer,
+  [role="dialog"] > div:first-child,
+  [role="dialog"] > div:last-child {
+    display: none !important;
+  }
+
+  /* Ensure ticket content is visible */
+  .ticket-layout {
+    page-break-inside: avoid;
+    margin: 0;
+    padding: 5mm;
+  }
+
+  /* Optimize text for thermal printing */
+  .ticket-layout,
+  .ticket-layout * {
+    font-family: 'Courier New', monospace !important;
+    color: #000 !important;
+    background: #fff !important;
+    font-size: 10px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Remove shadows, borders, rounded corners */
+  .ticket-layout * {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Ensure proper spacing */
+  .ticket-layout .separator {
+    border-color: #000 !important;
+    opacity: 1 !important;
+  }
+
+  /* Force max width for ticket */
+  .ticket-layout {
+    max-width: 80mm !important;
+    overflow: hidden !important;
+  }
+
+  /* Ensure text wraps properly */
+  .ticket-layout * {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+}
