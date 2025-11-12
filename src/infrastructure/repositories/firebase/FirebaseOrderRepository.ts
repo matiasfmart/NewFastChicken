@@ -225,4 +225,76 @@ export class FirebaseOrderRepository implements IOrderRepository {
     // Implementación futura si es necesario
     throw new Error('Delete order not implemented');
   }
+
+  async cancel(id: string, reason?: string): Promise<Order> {
+    const docRef = doc(this.firestore, this.collectionName, id);
+    const now = new Date();
+
+    return await runTransaction(this.firestore, async (transaction) => {
+      const orderDoc = await transaction.get(docRef);
+
+      if (!orderDoc.exists()) {
+        throw new Error('Order not found');
+      }
+
+      transaction.update(docRef, {
+        status: 'cancelled',
+        cancelledAt: Timestamp.fromDate(now),
+        cancellationReason: reason || null
+      });
+
+      const data = orderDoc.data();
+      return {
+        ...data,
+        id: orderDoc.id,
+        status: 'cancelled',
+        cancelledAt: now,
+        cancellationReason: reason,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+      } as Order;
+    });
+  }
+
+  async search(criteria: {
+    orderId?: string;
+    shiftId?: string;
+    status?: 'completed' | 'cancelled' | 'all';
+  }): Promise<Order[]> {
+    let ordersQuery = query(collection(this.firestore, this.collectionName));
+
+    // Aplicar filtros
+    if (criteria.shiftId) {
+      ordersQuery = query(ordersQuery, where('shiftId', '==', criteria.shiftId));
+    }
+
+    if (criteria.status && criteria.status !== 'all') {
+      ordersQuery = query(ordersQuery, where('status', '==', criteria.status));
+    }
+
+    const snapshot = await getDocs(ordersQuery);
+
+    let orders = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        ...data,
+        id: doc.id,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+        cancelledAt: data.cancelledAt instanceof Timestamp ? data.cancelledAt.toDate() : data.cancelledAt
+      } as Order;
+    });
+
+    // Si se busca por orderId específico, filtrar en memoria
+    if (criteria.orderId) {
+      orders = orders.filter(o => o.id === criteria.orderId);
+    }
+
+    // Ordenar por fecha descendente (más recientes primero)
+    orders.sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+      const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+      return dateB - dateA;
+    });
+
+    return orders;
+  }
 }

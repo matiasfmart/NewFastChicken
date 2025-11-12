@@ -11,9 +11,15 @@ export interface InventoryItem {
   stock: number;
 }
 
+/**
+ * Producto dentro de un combo
+ * - isFixed: true → Producto incluido automáticamente (no elegible)
+ * - isFixed: false → Usuario debe elegir entre productos elegibles del mismo tipo
+ */
 export interface ComboProduct {
   productId: string;
   quantity: number;
+  isFixed: boolean; // true = incluido automáticamente, false = elegible
 }
 
 // Tipo de descuento (lógica de negocio)

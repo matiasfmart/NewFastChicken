@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +16,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { ComboAPI, InventoryAPI } from '@/api';
 
 function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => Promise<void>, onCancel: () => void, inventoryItems: InventoryItem[] }) {
@@ -27,25 +29,76 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
     }
   }, [combo]);
 
+  // Analizar estructura del combo para mostrar feedback visual
+  const comboAnalysis = useMemo(() => {
+    if (!formData?.products) return { selectableGroups: new Map(), fixedProducts: [] };
+
+    const productsByType = new Map<string, { fixed: number; selectable: number; items: ComboProduct[] }>();
+
+    formData.products.forEach(p => {
+      const invItem = inventoryItems.find(i => i.id === p.productId);
+      if (!invItem) return;
+
+      const type = invItem.type;
+      if (!productsByType.has(type)) {
+        productsByType.set(type, { fixed: 0, selectable: 0, items: [] });
+      }
+
+      const group = productsByType.get(type)!;
+      if (p.isFixed ?? true) {
+        group.fixed++;
+      } else {
+        group.selectable++;
+      }
+      group.items.push(p);
+    });
+
+    const selectableGroups = new Map<string, number>();
+    productsByType.forEach((data, type) => {
+      if (data.selectable >= 2) {
+        selectableGroups.set(type, data.selectable);
+      }
+    });
+
+    return { selectableGroups, productsByType };
+  }, [formData?.products, inventoryItems]);
+
+  // Helper para obtener etiqueta legible del tipo
+  const getTypeLabel = (type: string) => {
+    switch(type) {
+      case 'product': return 'Producto';
+      case 'drink': return 'Bebida';
+      case 'side': return 'Guarnición';
+      default: return type;
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
     setFormData(prev => prev ? ({ ...prev, [name]: type === 'number' ? parseFloat(value) || 0 : value }) : null);
   };
 
-  const handleProductChange = (index: number, field: 'productId' | 'quantity', value: string) => {
+  const handleProductChange = (index: number, field: 'productId' | 'quantity' | 'isFixed', value: string | boolean) => {
     if (!formData) return;
     const updatedProducts = [...(formData.products || [])];
+
     if (field === 'quantity') {
-      updatedProducts[index] = { ...updatedProducts[index], quantity: parseInt(value, 10) || 1 };
+      updatedProducts[index] = { ...updatedProducts[index], quantity: parseInt(value as string, 10) || 1 };
+    } else if (field === 'isFixed') {
+      updatedProducts[index] = { ...updatedProducts[index], isFixed: value as boolean };
     } else {
-       updatedProducts[index] = { ...updatedProducts[index], productId: value };
+      updatedProducts[index] = { ...updatedProducts[index], productId: value as string };
     }
     setFormData(prev => prev ? ({ ...prev, products: updatedProducts }) : null);
   };
-  
+
   const addProduct = () => {
     if (inventoryItems.length === 0) return;
-    const newProduct: ComboProduct = { productId: inventoryItems[0].id, quantity: 1 };
+    const newProduct: ComboProduct = {
+      productId: inventoryItems[0].id,
+      quantity: 1,
+      isFixed: true // Default: producto fijo
+    };
     setFormData(prev => prev ? ({ ...prev, products: [...(prev.products || []), newProduct] }) : null);
   };
 
@@ -94,30 +147,124 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
                         <Label>Productos del Combo</Label>
                         <Button type="button" size="sm" variant="outline" onClick={addProduct}><PlusCircle className="mr-2 h-4 w-4" />Añadir Producto</Button>
                     </div>
-                    <div className="space-y-2">
-                        {formData.products?.map((p, index) => (
-                            <div key={index} className="flex items-center gap-2">
-                                <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccione un producto" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {inventoryItems.map(item => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}
-                                    </SelectContent>
-                                </Select>
-                                <Input
-                                    type="number"
-                                    min="1"
-                                    value={p.quantity}
-                                    onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
-                                    className="w-20"
-                                />
-                                <Button type="button" variant="ghost" size="icon" onClick={() => removeProduct(index)} className="text-destructive">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        ))}
+
+                    <div className="space-y-3">
+                        {formData.products?.map((p, index) => {
+                            const invItem = inventoryItems.find(i => i.id === p.productId);
+                            const productType = invItem?.type;
+                            const isFixed = p.isFixed ?? true;
+
+                            // Contar productos del mismo tipo
+                            const sameTypeProducts = formData.products?.filter(prod => {
+                                const item = inventoryItems.find(i => i.id === prod.productId);
+                                return item?.type === productType;
+                            }) || [];
+
+                            const sameTypeSelectable = sameTypeProducts.filter(prod => !(prod.isFixed ?? true)).length;
+                            const willBeSelectable = sameTypeSelectable >= 2;
+
+                            return (
+                                <div key={index} className="flex flex-col gap-2 p-3 border rounded-lg">
+                                    <div className="flex items-center gap-2">
+                                        <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
+                                            <SelectTrigger className="flex-1">
+                                                <SelectValue placeholder="Seleccione un producto" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {inventoryItems.map(item => (
+                                                    <SelectItem key={item.id} value={item.id}>
+                                                        {item.name} <span className="text-xs text-muted-foreground">({getTypeLabel(item.type)})</span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Input
+                                            type="number"
+                                            min="1"
+                                            value={p.quantity}
+                                            onChange={(e) => handleProductChange(index, 'quantity', e.target.value)}
+                                            className="w-20"
+                                            placeholder="Cant."
+                                        />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeProduct(index)} className="text-destructive">
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                            <Checkbox
+                                                id={`fixed-${index}`}
+                                                checked={isFixed}
+                                                onCheckedChange={(checked) => handleProductChange(index, 'isFixed', checked as boolean)}
+                                            />
+                                            <Label htmlFor={`fixed-${index}`} className="text-sm cursor-pointer">
+                                                Producto fijo
+                                            </Label>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            {productType && (
+                                                <Badge variant="outline" className="text-xs">
+                                                    {getTypeLabel(productType)}
+                                                </Badge>
+                                            )}
+                                            {!isFixed && willBeSelectable && (
+                                                <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                                    Elegible ({sameTypeSelectable} opciones)
+                                                </Badge>
+                                            )}
+                                            {!isFixed && !willBeSelectable && sameTypeSelectable === 1 && (
+                                                <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700">
+                                                    ⚠️ Requiere 2+ para elegir
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
                     </div>
+
+                    {/* Resumen visual del combo */}
+                    {formData.products && formData.products.length > 0 && (
+                        <div className="space-y-2 pt-4 border-t">
+                            <Label className="text-sm font-semibold">Vista previa del combo:</Label>
+                            <div className="space-y-2 text-sm">
+                                {/* Productos fijos */}
+                                {Array.from(comboAnalysis.productsByType.entries())
+                                    .filter(([_, data]) => data.fixed > 0)
+                                    .map(([type, data]) => (
+                                        <div key={`fixed-${type}`} className="flex items-center gap-2">
+                                            <Badge variant="default" className="text-xs">Incluido</Badge>
+                                            <span className="text-muted-foreground">
+                                                {data.fixed}x {getTypeLabel(type)} {data.fixed > 1 ? '(fijos)' : '(fijo)'}
+                                            </span>
+                                        </div>
+                                    ))}
+
+                                {/* Grupos elegibles */}
+                                {Array.from(comboAnalysis.selectableGroups.entries()).map(([type, count]) => (
+                                    <div key={`selectable-${type}`} className="flex items-center gap-2">
+                                        <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">Elegir 1</Badge>
+                                        <span className="text-muted-foreground">
+                                            Entre {count} opciones de {getTypeLabel(type)}
+                                        </span>
+                                    </div>
+                                ))}
+
+                                {/* Advertencias */}
+                                {Array.from(comboAnalysis.productsByType.entries())
+                                    .filter(([_, data]) => data.selectable === 1)
+                                    .map(([type, _]) => (
+                                        <div key={`warning-${type}`} className="flex items-center gap-2">
+                                            <Badge variant="secondary" className="text-xs bg-yellow-100 text-yellow-700">⚠️ Advertencia</Badge>
+                                            <span className="text-xs text-yellow-700">
+                                                Solo 1 {getTypeLabel(type)} sin fijar. Necesitas mínimo 2 para crear grupo de elección.
+                                            </span>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
                 </div>
             </ScrollArea>
