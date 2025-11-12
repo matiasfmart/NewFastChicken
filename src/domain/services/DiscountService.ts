@@ -17,15 +17,15 @@ export class DiscountService {
    * Verifica si una regla de descuento está activa en este momento
    */
   static isDiscountRuleActive(rule: DiscountRule, currentDate: Date = new Date()): boolean {
-    // Validar día/fecha si aplica
-    if (rule.type === 'weekday' && rule.value) {
+    // Validar día/fecha según temporalType (todos los descuentos tienen temporalType)
+    if (rule.temporalType === 'weekday' && rule.value) {
       const currentWeekday = currentDate.getDay().toString();
       if (currentWeekday !== rule.value) {
         return false;
       }
     }
 
-    if (rule.type === 'date' && rule.value) {
+    if (rule.temporalType === 'date' && rule.value) {
       const currentDateString = format(currentDate, 'yyyy-MM-dd');
       if (currentDateString !== rule.value) {
         return false;
@@ -48,79 +48,75 @@ export class DiscountService {
 
   /**
    * Obtiene el descuento activo para un combo individual
-   * Considera descuentos de tipo 'weekday' y 'date' con validación de horario
+   * Considera descuentos simples con validación temporal y de horario
+   *
+   * ✅ REFACTORIZADO: Ahora recibe allDiscounts como parámetro (colección separada)
+   *
+   * @param combo - Combo para el cual buscar descuentos
+   * @param allDiscounts - Todos los descuentos disponibles (desde colección discounts)
+   * @param currentDate - Fecha actual para validar descuentos temporales
+   * @returns Descuento activo con mayor porcentaje, o null si no hay ninguno
    */
-  static getActiveDiscountForCombo(combo: Combo, currentDate: Date = new Date()): { rule: DiscountRule; percentage: number } | null {
-    if (!combo.discounts || combo.discounts.length === 0) {
-      return null;
-    }
+  static getActiveDiscountForCombo(
+    combo: Combo,
+    allDiscounts: DiscountRule[],
+    currentDate: Date = new Date()
+  ): { rule: DiscountRule; percentage: number } | null {
+    // Filtrar descuentos que aplican a este combo específico
+    const applicableDiscounts = allDiscounts.filter(discount => {
+      // Solo descuentos simples (cross-promotion se maneja en applyPromotionalDiscounts)
+      if (discount.type !== 'simple') return false;
 
-    // Buscar descuentos por día/fecha que estén activos
-    for (const rule of combo.discounts) {
-      if ((rule.type === 'weekday' || rule.type === 'date') && this.isDiscountRuleActive(rule, currentDate)) {
-        return { rule, percentage: rule.percentage };
+      // Verificar alcance del descuento
+      if (discount.appliesTo === 'order') {
+        // Descuentos sobre el total no aplican a combos individuales
+        return false;
       }
-    }
 
-    return null;
+      if (discount.appliesTo === 'combos') {
+        // Debe estar en la lista de combos permitidos
+        if (!discount.comboIds || !discount.comboIds.includes(combo.id)) {
+          return false;
+        }
+      }
+
+      // Validar condiciones temporales (día/fecha y horario)
+      return this.isDiscountRuleActive(discount, currentDate);
+    });
+
+    // Si no hay descuentos aplicables
+    if (applicableDiscounts.length === 0) return null;
+
+    // Retornar el descuento con mayor porcentaje
+    const bestDiscount = applicableDiscounts.reduce((best, current) =>
+      current.percentage > best.percentage ? current : best
+    );
+
+    return { rule: bestDiscount, percentage: bestDiscount.percentage };
   }
 
   /**
    * Calcula descuentos promocionales en todo el carrito
-   * Considera descuentos de tipo 'quantity' y 'cross-promotion'
+   * Considera descuentos de tipo 'cross-promotion'
    *
    * @param orderItems - Items actuales en el carrito
-   * @param allCombos - Todos los combos disponibles (para obtener reglas de descuento)
+   * @param allCombos - Todos los combos disponibles (para validaciones)
+   * @param allDiscounts - Todas las reglas de descuento activas (colección separada)
+   * @param currentDate - Fecha actual para validar descuentos temporales
    * @returns Array de items con descuentos aplicados
    */
   static applyPromotionalDiscounts(
     orderItems: OrderItem[],
     allCombos: Combo[],
+    allDiscounts: DiscountRule[],
     currentDate: Date = new Date()
   ): OrderItem[] {
     const updatedItems = [...orderItems];
 
-    // Mapa de combos por ID para acceso rápido
-    const comboMap = new Map<string, Combo>();
-    allCombos.forEach(combo => comboMap.set(combo.id, combo));
+    // Filtrar solo descuentos activos
+    const activeDiscounts = allDiscounts.filter(rule => this.isDiscountRuleActive(rule, currentDate));
 
-    // 1. Aplicar descuentos por cantidad
-    updatedItems.forEach((item, index) => {
-      if (!item.combo) return;
-
-      const combo = comboMap.get(item.combo.id);
-      if (!combo || !combo.discounts) return;
-
-      // Buscar reglas de descuento por cantidad activas
-      const quantityRule = combo.discounts.find(
-        rule => rule.type === 'quantity' && this.isDiscountRuleActive(rule, currentDate)
-      );
-
-      if (quantityRule && quantityRule.requiredQuantity && quantityRule.discountedQuantity) {
-        // Calcular cuántos grupos de descuento hay
-        const groups = Math.floor(item.quantity / quantityRule.requiredQuantity);
-        const discountedUnits = groups * quantityRule.discountedQuantity;
-
-        if (discountedUnits > 0) {
-          // Calcular nuevo precio promedio
-          const normalUnits = item.quantity - discountedUnits;
-          const normalPrice = item.unitPrice * normalUnits;
-          const discountedPrice = item.unitPrice * (1 - quantityRule.percentage / 100) * discountedUnits;
-          const averagePrice = (normalPrice + discountedPrice) / item.quantity;
-
-          updatedItems[index] = {
-            ...item,
-            finalUnitPrice: averagePrice,
-            appliedDiscount: {
-              percentage: quantityRule.percentage,
-              rule: quantityRule
-            }
-          };
-        }
-      }
-    });
-
-    // 2. Aplicar descuentos cruzados (cross-promotion)
+    // Aplicar descuentos cruzados (cross-promotion)
     // Primero, contar cuántos de cada combo trigger hay en el carrito
     const triggerCounts = new Map<string, number>();
     orderItems.forEach(item => {
@@ -130,42 +126,141 @@ export class DiscountService {
       }
     });
 
-    // Buscar todas las reglas de cross-promotion activas
-    allCombos.forEach(combo => {
-      if (!combo.discounts) return;
+    // Filtrar descuentos de tipo 'cross-promotion'
+    const crossPromotionDiscounts = activeDiscounts.filter(rule => rule.type === 'cross-promotion');
 
-      combo.discounts.forEach(rule => {
-        if (rule.type === 'cross-promotion' && this.isDiscountRuleActive(rule, currentDate)) {
-          const triggerComboId = rule.triggerComboId || combo.id;
-          const targetComboId = rule.targetComboId || combo.id;
+    // Aplicar cada descuento cruzado
+    crossPromotionDiscounts.forEach(rule => {
+      if (!rule.triggerComboId || !rule.targetComboId) return;
 
-          // Verificar si el combo trigger está en el carrito
-          const triggerCount = triggerCounts.get(triggerComboId) || 0;
-          if (triggerCount === 0) return;
+      // Verificar si el combo trigger está en el carrito
+      const triggerCount = triggerCounts.get(rule.triggerComboId) || 0;
+      if (triggerCount === 0) return;
 
-          // Aplicar descuento al combo target
-          updatedItems.forEach((item, index) => {
-            if (item.combo && item.combo.id === targetComboId) {
-              // Si ya tiene descuento, comparar y aplicar el mayor
-              const currentDiscount = item.appliedDiscount?.percentage || 0;
-              if (rule.percentage > currentDiscount) {
-                const discountedPrice = item.unitPrice * (1 - rule.percentage / 100);
-                updatedItems[index] = {
-                  ...item,
-                  finalUnitPrice: discountedPrice,
-                  appliedDiscount: {
-                    percentage: rule.percentage,
-                    rule
-                  }
-                };
-              }
-            }
-          });
+      // ✅ Validar restricción de appliesTo y comboIds
+      if (rule.appliesTo === 'combos' && rule.comboIds && rule.comboIds.length > 0) {
+        if (!rule.comboIds.includes(rule.targetComboId)) {
+          return;
         }
-      });
+      }
+
+      // ✅ NUEVO: Lógica correcta para cross-promotion con soporte para 2x1
+      const is2x1 = rule.triggerComboId === rule.targetComboId;
+
+      if (is2x1) {
+        // ✅ CASO ESPECIAL: Promoción 2x1 (trigger === target)
+        // Lógica: Por cada 2 unidades, aplicar descuento a 1 (la más barata si hay diferencia de precio)
+
+        // Obtener todos los items del combo (expandiendo quantity)
+        const comboItems = updatedItems
+          .map((item, idx) => {
+            if (item.combo?.id === rule.targetComboId) {
+              // Expandir quantity a items individuales
+              return Array(item.quantity).fill(null).map(() => ({ item, idx }));
+            }
+            return [];
+          })
+          .flat()
+          .sort((a, b) => a.item.unitPrice - b.item.unitPrice); // Ordenar por precio (más barato primero)
+
+        // Aplicar descuento a items pares (2do, 4to, 6to...) = posiciones impares (1, 3, 5...)
+        const totalItems = comboItems.length;
+        const discountsToApply = Math.floor(totalItems / 2);
+
+        // Track de cuántas unidades con descuento por cada item del carrito
+        const discountCountPerItem = new Map<number, number>();
+
+        // Aplicar descuentos: items en posición 1, 3, 5, 7... (0-indexed)
+        for (let i = 1; i < totalItems && discountCountPerItem.size < discountsToApply; i += 2) {
+          const { idx } = comboItems[i];
+          const currentCount = discountCountPerItem.get(idx) || 0;
+          discountCountPerItem.set(idx, currentCount + 1);
+        }
+
+        // Actualizar items con descuentos calculados
+        discountCountPerItem.forEach((discountedQty, itemIndex) => {
+          const item = updatedItems[itemIndex];
+          const currentDiscount = item.appliedDiscount?.percentage || 0;
+
+          if (rule.percentage > currentDiscount) {
+            // Calcular precio promedio considerando unidades con y sin descuento
+            const normalQty = item.quantity - discountedQty;
+            const discountedPrice = item.unitPrice * (1 - rule.percentage / 100);
+            const averagePrice = (normalQty * item.unitPrice + discountedQty * discountedPrice) / item.quantity;
+
+            updatedItems[itemIndex] = {
+              ...item,
+              finalUnitPrice: averagePrice,
+              appliedDiscount: {
+                percentage: rule.percentage,
+                rule,
+              }
+            };
+          }
+        });
+      } else {
+        // ✅ CASO NORMAL: Cross-promotion A→B
+        // Por cada trigger en el carrito, aplicar descuento a UN target
+
+        let discountsApplied = 0;
+        const maxDiscounts = triggerCount;
+
+        updatedItems.forEach((item, index) => {
+          if (item.combo?.id === rule.targetComboId && discountsApplied < maxDiscounts) {
+            const currentDiscount = item.appliedDiscount?.percentage || 0;
+            if (rule.percentage > currentDiscount) {
+              const discountedPrice = item.unitPrice * (1 - rule.percentage / 100);
+              updatedItems[index] = {
+                ...item,
+                finalUnitPrice: discountedPrice,
+                appliedDiscount: {
+                  percentage: rule.percentage,
+                  rule
+                }
+              };
+              discountsApplied += item.quantity; // Contar todas las unidades del item
+            }
+          }
+        });
+      }
     });
 
     return updatedItems;
+  }
+
+  /**
+   * Obtiene el descuento activo sobre el total de la orden
+   * Considera descuentos de tipo 'simple' con appliesTo === 'order'
+   *
+   * @param allDiscounts - Todos los descuentos disponibles
+   * @param currentDate - Fecha actual para validar descuentos temporales
+   * @returns Descuento activo con mayor porcentaje, o null si no hay ninguno
+   */
+  static getActiveOrderDiscount(
+    allDiscounts: DiscountRule[],
+    currentDate: Date = new Date()
+  ): { rule: DiscountRule; percentage: number } | null {
+    // Filtrar descuentos que aplican al total de la orden
+    const applicableDiscounts = allDiscounts.filter(discount => {
+      // Solo descuentos simples
+      if (discount.type !== 'simple') return false;
+
+      // Solo descuentos sobre el total
+      if (discount.appliesTo !== 'order') return false;
+
+      // Validar condiciones temporales (día/fecha y horario)
+      return this.isDiscountRuleActive(discount, currentDate);
+    });
+
+    // Si no hay descuentos aplicables
+    if (applicableDiscounts.length === 0) return null;
+
+    // Retornar el descuento con mayor porcentaje
+    const bestDiscount = applicableDiscounts.reduce((best, current) =>
+      current.percentage > best.percentage ? current : best
+    );
+
+    return { rule: bestDiscount, percentage: bestDiscount.percentage };
   }
 
   /**
@@ -174,12 +269,15 @@ export class DiscountService {
    * @param item - Item del carrito
    * @param allOrderItems - Todos los items del carrito (para cross-promotion)
    * @param allCombos - Todos los combos disponibles
+   * @param allDiscounts - Todas las reglas de descuento activas
+   * @param currentDate - Fecha actual para validar descuentos temporales
    * @returns Item con el descuento aplicado
    */
   static calculateItemDiscount(
     item: OrderItem,
     allOrderItems: OrderItem[],
     allCombos: Combo[],
+    allDiscounts: DiscountRule[],
     currentDate: Date = new Date()
   ): OrderItem {
     if (!item.combo) {
@@ -187,12 +285,12 @@ export class DiscountService {
     }
 
     // 1. Primero verificar descuentos simples (weekday/date)
-    const simpleDiscount = this.getActiveDiscountForCombo(item.combo, currentDate);
+    const simpleDiscount = this.getActiveDiscountForCombo(item.combo, allDiscounts, currentDate);
 
     let bestDiscount: { percentage: number; rule: DiscountRule } | null = simpleDiscount;
 
     // 2. Aplicar lógica promocional y obtener el mejor descuento
-    const itemsWithPromotions = this.applyPromotionalDiscounts([item], allCombos, currentDate);
+    const itemsWithPromotions = this.applyPromotionalDiscounts([item], allCombos, allDiscounts, currentDate);
     const promotionalDiscount = itemsWithPromotions[0].appliedDiscount;
 
     if (promotionalDiscount && (!bestDiscount || promotionalDiscount.percentage > bestDiscount.percentage)) {

@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { Combo, InventoryItem } from "@/lib/types";
 import { ShiftProvider, useShift } from "@/context/ShiftContext";
+import { DiscountProvider } from "@/context/DiscountContext";
 import { OrderProvider } from "@/context/OrderContext";
 import { CashierHeader } from "@/components/cashier/CashierHeader";
 import { MenuCatalog } from "@/components/cashier/MenuCatalog";
@@ -110,20 +111,22 @@ export function ClientShell({ combos, inventory }: ClientShellProps) {
 
   return (
     <ShiftProvider>
-      <OrderProvider initialCombos={combos} initialInventory={inventory}>
-        <CashierContent
-          combos={combos}
-          inventory={inventory}
-          onSelectItem={handleSelectItem}
-        />
-        {selectedItem && (
-          <CustomizationDialog
-            isOpen={isDialogOpen}
-            onClose={handleDialogClose}
-            item={selectedItem}
+      <DiscountProvider>
+        <OrderProvider initialCombos={combos} initialInventory={inventory}>
+          <CashierContent
+            combos={combos}
+            inventory={inventory}
+            onSelectItem={handleSelectItem}
           />
-        )}
-      </OrderProvider>
+          {selectedItem && (
+            <CustomizationDialog
+              isOpen={isDialogOpen}
+              onClose={handleDialogClose}
+              item={selectedItem}
+            />
+          )}
+        </OrderProvider>
+      </DiscountProvider>
     </ShiftProvider>
   );
 }

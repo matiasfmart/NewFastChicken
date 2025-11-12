@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Combo, InventoryItem, OrderItem } from '@/lib/types';
 import { useOrder } from '@/context/OrderContext';
+import { useDiscounts } from '@/context/DiscountContext';
 import { DiscountService } from '@/domain/services/DiscountService';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -18,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean; onClose: () => void; item: Combo | InventoryItem; }) {
   const { addItemToOrder, getAvailableStock, checkStockForNewItem, inventory: allInventory } = useOrder();
+  const { discounts } = useDiscounts();
   const { toast } = useToast();
 
   const isCombo = 'products' in item;
@@ -115,8 +117,8 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
 
     const price = combo.price;
 
-    // Usar el servicio de descuentos para obtener el descuento activo (incluyendo validación de horario)
-    const activeDiscount = DiscountService.getActiveDiscountForCombo(combo);
+    // ✅ REFACTORIZADO: Pasar discounts desde la colección separada
+    const activeDiscount = DiscountService.getActiveDiscountForCombo(combo, discounts);
     const finalPrice = activeDiscount ? price * (1 - activeDiscount.percentage / 100) : price;
 
     const customizations = {

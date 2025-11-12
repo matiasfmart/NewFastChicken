@@ -12,7 +12,7 @@ import type { IDiscountRepository } from '@/domain/repositories/IDiscountReposit
 
 export interface UpdateDiscountInput {
   id: string;
-  type?: 'quantity' | 'cross-promotion' | 'simple';  // Tipo de descuento
+  type?: 'cross-promotion' | 'simple';  // Tipo de descuento
   percentage?: number;
   appliesTo?: 'order' | 'combos';  // Alcance del descuento
   comboIds?: string[];             // Combos específicos (cuando appliesTo === 'combos')
@@ -27,11 +27,8 @@ export interface UpdateDiscountInput {
     end: string;
   };
 
-  // Para tipo 'quantity'
-  requiredQuantity?: number;
-  discountedQuantity?: number;
-
   // Para tipo 'cross-promotion'
+  // ✅ NOTA: triggerComboId puede ser igual a targetComboId para simular "2x1"
   triggerComboId?: string;
   targetComboId?: string;
 }
@@ -86,15 +83,13 @@ export class UpdateDiscountUseCase {
       }
     }
 
-    // ✅ Validaciones específicas por tipo de descuento (solo si el tipo es 'quantity')
-    if (type === 'quantity') {
-      if (input.requiredQuantity !== undefined && input.requiredQuantity < 1) {
-        throw new Error('La cantidad requerida debe ser mayor a 0');
+    // ✅ Validaciones específicas por tipo de descuento
+    if (type === 'cross-promotion') {
+      // Validar que si se proporciona uno, se proporcionen ambos
+      if ((input.triggerComboId && !input.targetComboId) || (!input.triggerComboId && input.targetComboId)) {
+        throw new Error('Debe especificar tanto triggerComboId como targetComboId para promociones cruzadas');
       }
-
-      if (input.discountedQuantity !== undefined && input.discountedQuantity < 1) {
-        throw new Error('La cantidad con descuento debe ser mayor a 0');
-      }
+      // ✅ PERMITIDO: triggerComboId === targetComboId (para simular 2x1)
     }
 
     // Actualizar

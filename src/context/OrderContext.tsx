@@ -1,12 +1,13 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from "react";
 import type { OrderItem, DeliveryType, Order, InventoryItem, Combo } from "@/lib/types";
 import type { CreateOrderDTO } from "@/dtos";
 import { useToast } from "@/hooks/use-toast";
 import { OrderAPI, ShiftAPI } from "@/api";
 import { useShift } from "./ShiftContext";
+import { useDiscounts } from "./DiscountContext";
 import { DiscountService } from "@/domain/services/DiscountService";
 
 interface OrderContextType {
@@ -34,14 +35,19 @@ const OrderContext = createContext<OrderContextType | undefined>(undefined);
 export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos: Combo[], initialInventory: InventoryItem[] }> = ({ children, initialCombos, initialInventory }) => {
   const { toast } = useToast();
   const { currentShift, refreshShift } = useShift();
+  const { discounts } = useDiscounts();
 
   const [combos, setCombos] = useState<Combo[]>(initialCombos);
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
   
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('local');
-  
+
   const [inventoryStock, setInventoryStock] = useState<Record<string, number>>({});
+
+  // ✅ useRef para prevenir loop infinito en useEffect de descuentos
+  const prevOrderItemsRef = useRef<OrderItem[]>([]);
+  const isApplyingDiscountsRef = useRef(false);
   
   const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
@@ -160,34 +166,57 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
     };
   }, [getAvailableStock, inventory]);
 
-  // Recalcular descuentos promocionales cuando cambia el carrito
-  // ✅ ACTIVADO: Aplica descuentos de tipo quantity y cross-promotion automáticamente
-  useEffect(() => {
-    if (orderItems.length === 0) return;
+  // ✅ REACTIVADO: Aplicar descuentos cross-promotion con useRef para prevenir loop
+  // Crear signature estable para detectar cambios en items sin causar re-renders innecesarios
+  const orderItemsSignature = useMemo(
+    () => orderItems.map(i => `${i.id}:${i.quantity}`).join(','),
+    [orderItems]
+  );
 
-    // Aplicar descuentos promocionales (quantity y cross-promotion)
+  useEffect(() => {
+    // Prevenir loop cuando estamos aplicando descuentos
+    if (isApplyingDiscountsRef.current) {
+      isApplyingDiscountsRef.current = false;
+      return;
+    }
+
+    if (orderItems.length === 0) {
+      prevOrderItemsRef.current = [];
+      return;
+    }
+
+    // Aplicar descuentos cross-promotion (2x1, A→B)
     const itemsWithPromotionalDiscounts = DiscountService.applyPromotionalDiscounts(
       orderItems,
-      combos
+      combos,
+      discounts
     );
 
-    // Solo actualizar si hubo cambios REALES en los descuentos
-    // Compara profundamente para evitar loops infinitos
-    const hasChanges = itemsWithPromotionalDiscounts.some((newItem, index) => {
-      const oldItem = orderItems[index];
-      if (!oldItem) return true;
+    // Comparar con estado anterior usando referencia
+    const prevItems = prevOrderItemsRef.current;
 
-      const priceChanged = newItem.finalUnitPrice !== oldItem.finalUnitPrice;
-      const discountChanged = newItem.appliedDiscount?.percentage !== oldItem.appliedDiscount?.percentage;
-      const discountRuleChanged = newItem.appliedDiscount?.rule.id !== oldItem.appliedDiscount?.rule.id;
+    // Verificar si hay cambios reales
+    const hasRealChanges =
+      itemsWithPromotionalDiscounts.length !== prevItems.length ||
+      itemsWithPromotionalDiscounts.some((newItem, index) => {
+        const prevItem = prevItems[index];
+        if (!prevItem) return true;
 
-      return priceChanged || discountChanged || discountRuleChanged;
-    });
+        // Comparar solo campos relevantes
+        return (
+          newItem.id !== prevItem.id ||
+          newItem.quantity !== prevItem.quantity ||
+          Math.abs(newItem.finalUnitPrice - prevItem.finalUnitPrice) > 0.01 ||
+          newItem.appliedDiscount?.percentage !== prevItem.appliedDiscount?.percentage
+        );
+      });
 
-    if (hasChanges) {
+    if (hasRealChanges) {
+      isApplyingDiscountsRef.current = true;
+      prevOrderItemsRef.current = itemsWithPromotionalDiscounts;
       setOrderItems(itemsWithPromotionalDiscounts);
     }
-  }, [orderItems, combos]);
+  }, [orderItemsSignature, combos, discounts, orderItems]);
 
   const addItemToOrder = (newItem: OrderItem) => {
     setOrderItems((prevItems) => {
@@ -229,12 +258,24 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   const finalizeOrder = async (): Promise<Order | null> => {
     if (orderItems.length === 0) return null;
 
+    // ✅ Los descuentos cross-promotion YA están aplicados por el useEffect
+    // Solo necesitamos calcular subtotal, total y aplicar descuento sobre orden
+
+    // Calcular subtotal (precios originales sin descuento)
     const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-    const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
+
+    // Calcular total con descuentos por item (simples + cross-promotion ya aplicados)
+    let total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
+
+    // ✅ Aplicar descuento sobre el total de la orden si existe
+    const orderDiscount = DiscountService.getActiveOrderDiscount(discounts);
+    if (orderDiscount) {
+      total = total * (1 - orderDiscount.percentage / 100);
+    }
 
     const newOrderData: CreateOrderDTO = {
         shiftId: currentShift?.id,
-        items: orderItems,
+        items: orderItems, // ✅ Items ya tienen todos los descuentos aplicados
         deliveryType,
         subtotal,
         discount: subtotal - total,

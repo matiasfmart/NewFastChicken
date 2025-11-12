@@ -17,7 +17,7 @@ export interface ComboProduct {
 }
 
 // Tipo de descuento (lógica de negocio)
-export type DiscountRuleType = 'quantity' | 'cross-promotion' | 'simple';
+export type DiscountRuleType = 'cross-promotion' | 'simple';
 
 // Tipo temporal (cuándo aplica) - OBLIGATORIO para todos los descuentos
 export type TemporalType = 'weekday' | 'date';
@@ -41,11 +41,8 @@ export interface DiscountRule {
         end: string;   // "HH:MM"
     };
 
-    // Para descuentos por cantidad: "Compra N, paga M"
-    requiredQuantity?: number;      // Cantidad mínima para activar descuento
-    discountedQuantity?: number;    // Cuántas unidades reciben descuento (por cada grupo de requiredQuantity)
-
     // Para promociones cruzadas: "Compra combo A, el combo B tiene descuento"
+    // ✅ NOTA: triggerComboId puede ser igual a targetComboId para simular "2x1"
     triggerComboId?: string;        // ID del combo que activa el descuento
     targetComboId?: string;         // ID del combo que recibe el descuento
 }

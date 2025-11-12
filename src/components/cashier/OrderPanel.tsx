@@ -12,14 +12,24 @@ import { CheckoutDialog } from './CheckoutDialog';
 import type { Order } from '@/lib/types';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useDiscounts } from '@/context/DiscountContext';
+import { DiscountService } from '@/domain/services/DiscountService';
 
 export function OrderPanel() {
   const { orderItems, updateItemQuantity, removeItemFromOrder, clearOrder, deliveryType, setDeliveryType, finalizeOrder, currentOrderNumber, checkStockForNewItem } = useOrder();
   const [finalizedOrder, setFinalizedOrder] = React.useState<Order | null>(null);
   const { toast } = useToast();
-  
+  const { discounts } = useDiscounts();
+
   const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-  const total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
+  let total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
+
+  // ✅ Calcular descuento sobre total si existe
+  const orderDiscount = DiscountService.getActiveOrderDiscount(discounts);
+  if (orderDiscount) {
+    total = total * (1 - orderDiscount.percentage / 100);
+  }
+
   const discount = subtotal - total;
 
   const handleFinalize = async () => {

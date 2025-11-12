@@ -35,10 +35,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { DiscountRule, Combo } from "@/lib/types";
 import type { CreateDiscountInput, UpdateDiscountInput } from "@/application/use-cases";
 import { useDiscounts } from "@/context/DiscountContext";
-import { MoreHorizontal, Plus, Percent, Calendar, Hash, Link2 } from "lucide-react";
+import { MoreHorizontal, Plus, Percent, Link2, Info } from "lucide-react";
 
 interface DiscountManagementProps {
   combos: Combo[];
@@ -94,8 +95,7 @@ export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }
   const getDiscountTypeLabel = (type: DiscountRule['type']): string => {
     const labels = {
       'simple': 'Descuento simple',
-      'quantity': 'Por cantidad (NxM)',
-      'cross-promotion': 'Promoción cruzada'
+      'cross-promotion': 'Promoción'
     };
     return labels[type];
   };
@@ -103,7 +103,6 @@ export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }
   const getDiscountTypeIcon = (type: DiscountRule['type']) => {
     const icons = {
       'simple': Percent,
-      'quantity': Hash,
       'cross-promotion': Link2
     };
     const Icon = icons[type];
@@ -125,15 +124,10 @@ export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }
     let description = formatTemporalCondition(discount);
 
     // Agregar detalles específicos del tipo
-    switch (discount.type) {
-      case 'quantity':
-        description += ` | Lleva ${discount.requiredQuantity}, paga ${discount.discountedQuantity}`;
-        break;
-      case 'cross-promotion':
-        const trigger = combos.find(c => c.id === discount.triggerComboId);
-        const target = combos.find(c => c.id === discount.targetComboId);
-        description += ` | Compra "${trigger?.name || 'Combo'}" → obtén en "${target?.name || 'Combo'}"`;
-        break;
+    if (discount.type === 'cross-promotion') {
+      const trigger = combos.find(c => c.id === discount.triggerComboId);
+      const target = combos.find(c => c.id === discount.targetComboId);
+      description += ` | Compra "${trigger?.name || 'Combo'}" → obtén en "${target?.name || 'Combo'}"`;
     }
 
     return description;
@@ -143,6 +137,15 @@ export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }
     if (discount.appliesTo === 'order') {
       return 'Total de la compra';
     }
+
+    // ✅ NUEVO: Manejar descuentos de tipo cross-promotion
+    if (discount.type === 'cross-promotion') {
+      const trigger = combos.find(c => c.id === discount.triggerComboId);
+      const target = combos.find(c => c.id === discount.targetComboId);
+      return `${trigger?.name || 'N/A'} → ${target?.name || 'N/A'}`;
+    }
+
+    // Para descuentos simples y de cantidad (appliesTo === 'combos')
     if (discount.appliesTo === 'combos' && discount.comboIds && discount.comboIds.length > 0) {
       const comboNames = discount.comboIds.map(id => {
         const combo = combos.find(c => c.id === id);
@@ -150,6 +153,7 @@ export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }
       });
       return comboNames.join(', ');
     }
+
     return 'Sin asignar';
   };
 
@@ -279,8 +283,6 @@ const DiscountFormDialog: React.FC<DiscountFormDialogProps> = ({
     temporalType: discount?.temporalType || 'weekday',
     value: discount?.value || '',
     timeRange: discount?.timeRange,
-    requiredQuantity: discount?.requiredQuantity,
-    discountedQuantity: discount?.discountedQuantity,
     triggerComboId: discount?.triggerComboId,
     targetComboId: discount?.targetComboId,
   });
@@ -329,7 +331,6 @@ const DiscountFormDialog: React.FC<DiscountFormDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="simple">Descuento simple</SelectItem>
-                  <SelectItem value="quantity">Por cantidad (NxM)</SelectItem>
                   <SelectItem value="cross-promotion">Promoción cruzada</SelectItem>
                 </SelectContent>
               </Select>
@@ -349,60 +350,80 @@ const DiscountFormDialog: React.FC<DiscountFormDialogProps> = ({
               />
             </div>
 
-            {/* ✅ NUEVO: Alcance del descuento */}
-            <div className="space-y-2">
-              <Label htmlFor="appliesTo">Aplica a</Label>
-              <Select
-                value={formData.appliesTo}
-                onValueChange={(value) => {
-                  handleChange('appliesTo', value);
-                  // Limpiar comboIds si cambia a 'order'
-                  if (value === 'order') {
-                    handleChange('comboIds', []);
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="order">Total de la compra</SelectItem>
-                  <SelectItem value="combos">Combos específicos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* ✅ Mensaje explicativo para promoción cruzada */}
+            {formData.type === 'cross-promotion' && (
+              <Alert className="bg-blue-50 border-blue-200">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-sm text-blue-800">
+                  <strong>Promoción Cruzada:</strong> El descuento se aplicará automáticamente cuando
+                  el cliente agregue al carrito el <strong>Combo Disparador</strong> y el <strong>Combo con Descuento</strong>.
+                  {formData.triggerComboId === formData.targetComboId && formData.triggerComboId && (
+                    <span className="block mt-1">
+                      💡 <em>Ambos combos son iguales = promoción tipo "2x1" o "descuento por cantidad"</em>
+                    </span>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
 
-            {/* ✅ NUEVO: Selector de combos (solo si appliesTo === 'combos') */}
-            {formData.appliesTo === 'combos' && (
-              <div className="space-y-2">
-                <Label htmlFor="comboIds">Combos</Label>
-                <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
-                  {combos.map((combo) => (
-                    <div key={combo.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={`combo-${combo.id}`}
-                        checked={formData.comboIds?.includes(combo.id) || false}
-                        onChange={(e) => {
-                          const currentIds = formData.comboIds || [];
-                          if (e.target.checked) {
-                            handleChange('comboIds', [...currentIds, combo.id]);
-                          } else {
-                            handleChange('comboIds', currentIds.filter(id => id !== combo.id));
-                          }
-                        }}
-                        className="rounded border-gray-300 text-primary focus:ring-primary"
-                      />
-                      <label
-                        htmlFor={`combo-${combo.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {combo.name}
-                      </label>
-                    </div>
-                  ))}
+            {/* ✅ Alcance del descuento - SOLO para tipo 'simple' */}
+            {formData.type === 'simple' && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="appliesTo">Aplica a</Label>
+                  <Select
+                    value={formData.appliesTo}
+                    onValueChange={(value) => {
+                      handleChange('appliesTo', value);
+                      // Limpiar comboIds si cambia a 'order'
+                      if (value === 'order') {
+                        handleChange('comboIds', []);
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="order">Total de la compra</SelectItem>
+                      <SelectItem value="combos">Combos específicos</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </div>
+
+                {/* Selector de combos (solo si appliesTo === 'combos') */}
+                {formData.appliesTo === 'combos' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="comboIds">Combos</Label>
+                    <div className="border rounded-md p-3 space-y-2 max-h-48 overflow-y-auto">
+                      {combos.map((combo) => (
+                        <div key={combo.id} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`combo-${combo.id}`}
+                            checked={formData.comboIds?.includes(combo.id) || false}
+                            onChange={(e) => {
+                              const currentIds = formData.comboIds || [];
+                              if (e.target.checked) {
+                                handleChange('comboIds', [...currentIds, combo.id]);
+                              } else {
+                                handleChange('comboIds', currentIds.filter(id => id !== combo.id));
+                              }
+                            }}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <label
+                            htmlFor={`combo-${combo.id}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {combo.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* ✅ OBLIGATORIO: Condición Temporal */}
@@ -463,35 +484,6 @@ const DiscountFormDialog: React.FC<DiscountFormDialogProps> = ({
             )}
 
             {/* ✅ Campos específicos por tipo de descuento */}
-
-            {formData.type === 'quantity' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="requiredQuantity">Cantidad Requerida</Label>
-                  <Input
-                    id="requiredQuantity"
-                    type="number"
-                    min="1"
-                    value={formData.requiredQuantity || ''}
-                    onChange={(e) => handleChange('requiredQuantity', parseInt(e.target.value))}
-                    placeholder="Ej: 3"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="discountedQuantity">Cantidad a Pagar</Label>
-                  <Input
-                    id="discountedQuantity"
-                    type="number"
-                    min="1"
-                    value={formData.discountedQuantity || ''}
-                    onChange={(e) => handleChange('discountedQuantity', parseInt(e.target.value))}
-                    placeholder="Ej: 2"
-                    required
-                  />
-                </div>
-              </div>
-            )}
 
             {formData.type === 'cross-promotion' && (
               <div className="space-y-4">

@@ -20,16 +20,16 @@ interface MongoDiscountDocument {
   _id: ObjectId;
   type: string;
   percentage: number;
-  value?: string;
+  appliesTo: string; // 'order' | 'combos'
+  comboIds?: string[]; // IDs de combos a los que aplica (cuando appliesTo === 'combos')
+  temporalType: string; // 'weekday' | 'date'
+  value: string; // Día (0-6) o Fecha (YYYY-MM-DD)
   timeRange?: {
     start: string;
     end: string;
   };
-  requiredQuantity?: number;
-  discountedQuantity?: number;
   triggerComboId?: string;
   targetComboId?: string;
-  comboIds?: string[]; // Array de IDs de combos asociados
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,10 +51,11 @@ export class MongoDBDiscountRepository implements IDiscountRepository {
       id: doc._id.toString(),
       type: doc.type as any,
       percentage: doc.percentage,
+      appliesTo: doc.appliesTo as any,
+      comboIds: doc.comboIds,
+      temporalType: doc.temporalType as any,
       value: doc.value,
       timeRange: doc.timeRange,
-      requiredQuantity: doc.requiredQuantity,
-      discountedQuantity: doc.discountedQuantity,
       triggerComboId: doc.triggerComboId,
       targetComboId: doc.targetComboId,
     };
@@ -67,13 +68,13 @@ export class MongoDBDiscountRepository implements IDiscountRepository {
     return {
       type: discount.type,
       percentage: discount.percentage,
+      appliesTo: discount.appliesTo,
+      comboIds: discount.comboIds,
+      temporalType: discount.temporalType,
       value: discount.value,
       timeRange: discount.timeRange,
-      requiredQuantity: discount.requiredQuantity,
-      discountedQuantity: discount.discountedQuantity,
       triggerComboId: discount.triggerComboId,
       targetComboId: discount.targetComboId,
-      comboIds: [], // Inicialmente sin combos asociados
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -128,10 +129,11 @@ export class MongoDBDiscountRepository implements IDiscountRepository {
     // Solo actualizar campos que vienen en el partial
     if (discount.type !== undefined) updateDoc.type = discount.type;
     if (discount.percentage !== undefined) updateDoc.percentage = discount.percentage;
+    if (discount.appliesTo !== undefined) updateDoc.appliesTo = discount.appliesTo;
+    if (discount.comboIds !== undefined) updateDoc.comboIds = discount.comboIds;
+    if (discount.temporalType !== undefined) updateDoc.temporalType = discount.temporalType;
     if (discount.value !== undefined) updateDoc.value = discount.value;
     if (discount.timeRange !== undefined) updateDoc.timeRange = discount.timeRange;
-    if (discount.requiredQuantity !== undefined) updateDoc.requiredQuantity = discount.requiredQuantity;
-    if (discount.discountedQuantity !== undefined) updateDoc.discountedQuantity = discount.discountedQuantity;
     if (discount.triggerComboId !== undefined) updateDoc.triggerComboId = discount.triggerComboId;
     if (discount.targetComboId !== undefined) updateDoc.targetComboId = discount.targetComboId;
 
@@ -145,7 +147,7 @@ export class MongoDBDiscountRepository implements IDiscountRepository {
     // Primero desasociar de todos los combos
     await this.combosCollection.updateMany(
       { 'discounts.id': id },
-      { $pull: { discounts: { id } } }
+      { $pull: { discounts: { id } } as any }
     );
 
     // Luego eliminar el descuento
@@ -184,7 +186,7 @@ export class MongoDBDiscountRepository implements IDiscountRepository {
     await this.collection.updateOne(
       { _id: new ObjectId(discountId) },
       {
-        $pull: { comboIds: comboId },
+        $pull: { comboIds: comboId } as any,
         $set: { updatedAt: new Date() }
       }
     );
@@ -195,7 +197,7 @@ export class MongoDBDiscountRepository implements IDiscountRepository {
       {
         $pull: {
           discounts: { id: discountId }
-        }
+        } as any
       }
     );
   }
