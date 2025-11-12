@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { DiscountRule, Combo } from "@/lib/types";
 import type { CreateDiscountInput, UpdateDiscountInput } from "@/application/use-cases";
@@ -45,6 +45,10 @@ interface DiscountManagementProps {
   combos: Combo[];
 }
 
+export interface DiscountManagementRef {
+  openCreateDialog: () => void;
+}
+
 /**
  * Componente principal de gestión de descuentos
  *
@@ -53,22 +57,28 @@ interface DiscountManagementProps {
  * - Usa DiscountContext para operaciones
  * - Presenta UI amigable para configurar reglas de descuento
  */
-export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }) => {
-  const {
-    discounts,
-    isLoading,
-    createDiscount,
-    updateDiscount,
-    deleteDiscount,
-  } = useDiscounts();
+export const DiscountManagement = React.forwardRef<DiscountManagementRef, DiscountManagementProps>(
+  ({ combos }, ref) => {
+    const {
+      discounts,
+      isLoading,
+      createDiscount,
+      updateDiscount,
+      deleteDiscount,
+    } = useDiscounts();
 
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingDiscount, setEditingDiscount] = useState<DiscountRule | null>(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [editingDiscount, setEditingDiscount] = useState<DiscountRule | null>(null);
 
-  const handleCreate = () => {
-    setEditingDiscount(null);
-    setIsDialogOpen(true);
-  };
+    const handleCreate = () => {
+      setEditingDiscount(null);
+      setIsDialogOpen(true);
+    };
+
+    // Exponer handleCreate al componente padre
+    React.useImperativeHandle(ref, () => ({
+      openCreateDialog: handleCreate
+    }));
 
   const handleEdit = (discount: DiscountRule) => {
     setEditingDiscount(discount);
@@ -158,21 +168,9 @@ export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }
   };
 
   return (
-    <div className="space-y-4">
+    <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Gestión de Descuentos</CardTitle>
-            <CardDescription>
-              Crea y administra reglas de descuento para tus combos
-            </CardDescription>
-          </div>
-          <Button onClick={handleCreate} disabled={isLoading}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo Descuento
-          </Button>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {discounts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No hay descuentos configurados. Crea uno para empezar.
@@ -253,9 +251,9 @@ export const DiscountManagement: React.FC<DiscountManagementProps> = ({ combos }
           }}
         />
       )}
-    </div>
+    </>
   );
-};
+});
 
 /**
  * Formulario para crear/editar descuentos

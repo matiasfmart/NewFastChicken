@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { DiscountManagement } from "@/components/admin/DiscountManagement";
+import React, { useEffect, useState, useRef } from "react";
+import { DiscountManagement, type DiscountManagementRef } from "@/components/admin/DiscountManagement";
 import { DiscountProvider } from "@/context/DiscountContext";
 import type { Combo, DiscountRule } from "@/lib/types";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 export default function DiscountsPage() {
   const [combos, setCombos] = useState<Combo[]>([]);
   const [discounts, setDiscounts] = useState<DiscountRule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const discountManagementRef = useRef<DiscountManagementRef>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,15 +51,21 @@ export default function DiscountsPage() {
 
   return (
     <DiscountProvider initialDiscounts={discounts}>
-      <div className="container mx-auto py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Gestión de Descuentos</h1>
-          <p className="text-muted-foreground mt-2">
-            Administra todos los tipos de descuentos: por día, por fecha, por cantidad y promociones cruzadas
-          </p>
+      <div className="flex flex-col gap-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Gestión de Descuentos</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Administra todos los tipos de descuentos: por día, por fecha y promociones cruzadas
+            </p>
+          </div>
+          <Button onClick={() => discountManagementRef.current?.openCreateDialog()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Descuento
+          </Button>
         </div>
 
-        <DiscountManagement combos={combos} />
+        <DiscountManagement ref={discountManagementRef} combos={combos} />
       </div>
     </DiscountProvider>
   );

@@ -118,9 +118,12 @@ export default function EmployeesPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
-          <Skeleton className="h-8 w-48" />
+          <div>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64 mt-1" />
+          </div>
           <Skeleton className="h-10 w-40" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -133,69 +136,71 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Gestión de Empleados</h1>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo Empleado
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {isEditing ? 'Editar Empleado' : 'Nuevo Empleado'}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nombre</Label>
-                <Input
-                  id="name"
-                  value={formData.name || ''}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Juan Pérez"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value) => setFormData({ ...formData, role: value as 'cashier' | 'admin' })}
-                >
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Selecciona un rol" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cashier">Cajero</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="active"
-                  checked={formData.active ?? true}
-                  onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                  className="h-4 w-4 rounded border-gray-300"
-                />
-                <Label htmlFor="active">Activo</Label>
-              </div>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={handleCloseDialog}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSave} disabled={!formData.name}>
-                {isEditing ? 'Actualizar' : 'Crear'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Gestión de Empleados</h1>
+          <p className="text-sm text-muted-foreground mt-1">Administra el personal y sus permisos</p>
+        </div>
+        <Button onClick={() => handleOpenDialog()}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo Empleado
+        </Button>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isEditing ? 'Editar Empleado' : 'Nuevo Empleado'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre</Label>
+              <Input
+                id="name"
+                value={formData.name || ''}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Juan Pérez"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="role">Rol</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value) => setFormData({ ...formData, role: value as 'cashier' | 'admin' })}
+              >
+                <SelectTrigger id="role">
+                  <SelectValue placeholder="Selecciona un rol" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cashier">Cajero</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="active"
+                checked={formData.active ?? true}
+                onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="active">Activo</Label>
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={handleCloseDialog}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={!formData.name}>
+              {isEditing ? 'Actualizar' : 'Crear'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {employees.map((employee) => (

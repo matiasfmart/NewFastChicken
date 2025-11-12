@@ -194,9 +194,12 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">Resumen de ventas y métricas del negocio</p>
+          </div>
           <Skeleton className="h-10 w-64" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -215,9 +218,12 @@ export default function AdminDashboardPage() {
   if (!metrics) return null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Resumen de ventas y métricas del negocio</p>
+        </div>
         <DateRangeSelector
           dateRange={dateRange}
           onDateRangeChange={setDateRange}

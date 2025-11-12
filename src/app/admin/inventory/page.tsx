@@ -79,8 +79,14 @@ export default function InventoryPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold tracking-tight mb-4">Gestión de Inventario</h1>
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Gestión de Inventario</h1>
+          <p className="text-sm text-muted-foreground mt-1">Administra productos, bebidas y acompañamientos</p>
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="space-y-4">
             <div className="flex space-x-4">
@@ -92,9 +98,9 @@ export default function InventoryPage() {
             <Skeleton className="h-48 w-full" />
         </div>
       ) : (
-        <InventoryTabs 
-          products={products} 
-          drinks={drinks} 
+        <InventoryTabs
+          products={products}
+          drinks={drinks}
           sides={sides}
           onDeleteItem={confirmDeleteItem}
           onSaveItem={handleSaveInventory}

@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { MoreHorizontal, PlusCircle, Trash2 } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Trash2, Plus } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { Combo, ComboProduct, InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -226,23 +226,31 @@ export default function CombosPage() {
   }
 
   return (
-    <>
-    <Card>
-      <CardHeader>
-        <CardTitle>Gestión de Combos</CardTitle>
-        <CardDescription>Cree, edite y elimine los combos del menú.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-4 text-right">
-            <Button onClick={openCreateForm}>Crear Nuevo Combo</Button>
+    <div className="flex flex-col gap-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Gestión de Combos</h1>
+          <p className="text-sm text-muted-foreground mt-1">Cree, edite y elimine los combos del menú</p>
         </div>
-        {isLoading ? (
+        <Button onClick={openCreateForm}>
+          <Plus className="mr-2 h-4 w-4" />
+          Crear Nuevo Combo
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <Card>
+          <CardContent className="pt-6">
             <div className="space-y-2">
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
             </div>
-        ) : (
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="pt-6">
             <Table>
             <TableHeader>
                 <TableRow>
@@ -287,11 +295,11 @@ export default function CombosPage() {
                 ))}
             </TableBody>
             </Table>
-        )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
 
-    {isFormOpen && editingCombo && (
+      {isFormOpen && editingCombo && (
         <ComboForm
           combo={editingCombo}
           onSave={handleSaveCombo}
@@ -300,20 +308,22 @@ export default function CombosPage() {
         />
     )}
 
-    <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
+      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setDeleteAlertOpen}>
         <AlertDialogContent>
-            <AlertDialogHeader>
+          <AlertDialogHeader>
             <AlertDialogTitle>¿Está seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-                Esta acción no se puede deshacer. Esto eliminará permanentemente el combo.
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el combo.
             </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
-            </AlertDialogFooter>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
-    </AlertDialog>
-    </>
+      </AlertDialog>
+    </div>
   );
 }
