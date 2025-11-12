@@ -78,6 +78,8 @@ export interface OrderItem {
 
 export type DeliveryType = 'local' | 'takeaway' | 'delivery';
 
+export type OrderStatus = 'completed' | 'cancelled';
+
 export interface Order {
   id: number | string;
   shiftId?: string; // Vincula la orden con una jornada
@@ -86,7 +88,10 @@ export interface Order {
   subtotal: number;
   discount: number;
   total: number;
+  status: OrderStatus; // Estado del pedido
   createdAt: Date | Timestamp;
+  cancelledAt?: Date | Timestamp; // Fecha de cancelación si aplica
+  cancellationReason?: string; // Razón de la cancelación
 }
 
 export interface Employee {

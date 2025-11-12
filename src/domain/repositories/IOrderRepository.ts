@@ -39,4 +39,22 @@ export interface IOrderRepository {
    * Elimina una orden
    */
   delete(id: string): Promise<void>;
+
+  /**
+   * Cancela una orden existente
+   * Marca la orden como cancelada sin eliminarla
+   */
+  cancel(id: string, reason?: string): Promise<Order>;
+
+  /**
+   * Busca órdenes por criterios
+   * Permite buscar por número de orden, fecha, etc.
+   */
+  search(criteria: {
+    orderId?: string;
+    shiftId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    status?: 'completed' | 'cancelled' | 'all';
+  }): Promise<Order[]>;
 }

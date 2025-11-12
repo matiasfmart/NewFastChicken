@@ -33,7 +33,10 @@ export class MongoDBOrderRepository implements IOrderRepository {
       subtotal: doc.subtotal,
       discount: doc.discount,
       total: doc.total,
-      createdAt: doc.createdAt
+      status: doc.status || 'completed', // Default para órdenes antiguas
+      createdAt: doc.createdAt,
+      cancelledAt: doc.cancelledAt,
+      cancellationReason: doc.cancellationReason
     };
   }
 
@@ -125,11 +128,16 @@ export class MongoDBOrderRepository implements IOrderRepository {
         );
       }
 
-      // Insertar la orden
-      const result = await this.collection.insertOne(order);
+      // Insertar la orden con estado 'completed' por defecto
+      const orderData = {
+        ...order,
+        status: 'completed' as const
+      };
+
+      const result = await this.collection.insertOne(orderData);
 
       return {
-        ...order,
+        ...orderData,
         id: result.insertedId.toString()
       };
     } catch (error) {
@@ -146,5 +154,82 @@ export class MongoDBOrderRepository implements IOrderRepository {
   async delete(_id: string): Promise<void> {
     // Implementación futura si es necesario
     throw new Error('Delete order not implemented');
+  }
+
+  /**
+   * Cancela una orden existente
+   * Marca la orden como cancelada sin eliminarla
+   */
+  async cancel(id: string, reason?: string): Promise<Order> {
+    const now = new Date();
+
+    const result = await this.collection.findOneAndUpdate(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          status: 'cancelled',
+          cancelledAt: now,
+          cancellationReason: reason
+        }
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) {
+      throw new Error('No se encontró la orden para cancelar');
+    }
+
+    return this.toOrder(result);
+  }
+
+  /**
+   * Busca órdenes por criterios
+   */
+  async search(criteria: {
+    orderId?: string;
+    shiftId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    status?: 'completed' | 'cancelled' | 'all';
+  }): Promise<Order[]> {
+    const filter: any = {};
+
+    // Búsqueda por ID específico
+    if (criteria.orderId) {
+      try {
+        filter._id = new ObjectId(criteria.orderId);
+      } catch {
+        // Si no es un ObjectId válido, no encontrará nada
+        return [];
+      }
+    }
+
+    // Filtro por jornada
+    if (criteria.shiftId) {
+      filter.shiftId = criteria.shiftId;
+    }
+
+    // Filtro por rango de fechas
+    if (criteria.startDate || criteria.endDate) {
+      filter.createdAt = {};
+      if (criteria.startDate) {
+        filter.createdAt.$gte = criteria.startDate;
+      }
+      if (criteria.endDate) {
+        filter.createdAt.$lte = criteria.endDate;
+      }
+    }
+
+    // Filtro por estado
+    if (criteria.status && criteria.status !== 'all') {
+      filter.status = criteria.status;
+    }
+
+    const docs = await this.collection
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    return docs.map(doc => this.toOrder(doc));
   }
 }

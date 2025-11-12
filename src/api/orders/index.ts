@@ -70,6 +70,34 @@ class OrderAPIClient {
 
     return await this.repository.getAll();
   }
+
+  /**
+   * Cancela una orden existente
+   */
+  async cancel(orderId: string, reason?: string): Promise<Order> {
+    if (!this.repository) {
+      throw new Error('Repository not initialized');
+    }
+
+    return await this.repository.cancel(orderId, reason);
+  }
+
+  /**
+   * Busca órdenes por criterios
+   */
+  async search(criteria: {
+    orderId?: string;
+    shiftId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    status?: 'completed' | 'cancelled' | 'all';
+  }): Promise<Order[]> {
+    if (!this.repository) {
+      throw new Error('Repository not initialized');
+    }
+
+    return await this.repository.search(criteria);
+  }
 }
 
 // Singleton

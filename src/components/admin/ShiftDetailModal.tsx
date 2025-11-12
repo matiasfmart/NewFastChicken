@@ -87,12 +87,17 @@ export function ShiftDetailModal({ shiftId, isOpen, onClose }: ShiftDetailModalP
     }
   };
 
-  // Calcular métricas
-  const totalOrders = orders.length;
+  // Calcular métricas separando completadas de canceladas
+  const completedOrders = orders.filter(order => order.status === 'completed');
+  const cancelledOrders = orders.filter(order => order.status === 'cancelled');
+  const totalOrders = completedOrders.length;
   const avgTicket = shift && totalOrders > 0 ? shift.totalRevenue / totalOrders : 0;
 
-  // Agrupar por combo o producto individual
-  const comboSales = orders.reduce((acc, order) => {
+  // Calcular total cancelado
+  const cancelledRevenue = cancelledOrders.reduce((sum, order) => sum + order.total, 0);
+
+  // Agrupar por combo o producto individual (solo órdenes completadas)
+  const comboSales = completedOrders.reduce((acc, order) => {
     order.items.forEach(item => {
       let itemName: string;
 
@@ -179,6 +184,11 @@ export function ShiftDetailModal({ shiftId, isOpen, onClose }: ShiftDetailModalP
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Total ventas</p>
                     <p className="text-xl font-bold text-green-600">{formatCurrency(shift.totalRevenue)}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted-foreground">Pedidos cancelados</p>
+                    <p className="text-xl font-bold text-red-600">{formatCurrency(cancelledRevenue)}</p>
+                    <p className="text-xs text-muted-foreground">{cancelledOrders.length} pedidos</p>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted-foreground">Efectivo esperado</p>
@@ -268,30 +278,51 @@ export function ShiftDetailModal({ shiftId, isOpen, onClose }: ShiftDetailModalP
             {/* Lista de Órdenes */}
             <Card>
               <CardHeader>
-                <CardTitle>Órdenes Completadas ({totalOrders})</CardTitle>
+                <CardTitle>Órdenes de la Jornada ({orders.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 {orders.length > 0 ? (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {orders.map(order => (
-                      <div key={order.id} className="flex justify-between items-center p-3 border-b hover:bg-muted/50 transition-colors">
+                      <div
+                        key={order.id}
+                        className={`flex justify-between items-center p-3 border-b hover:bg-muted/50 transition-colors ${
+                          order.status === 'cancelled' ? 'opacity-60 bg-red-50' : ''
+                        }`}
+                      >
                         <div className="flex items-center gap-4">
                           <span className="font-mono text-sm text-muted-foreground">
                             {formatTime(order.createdAt)}
                           </span>
-                          <div>
-                            <p className="font-medium">
-                              {order.items.map(item => {
-                                const itemName = item.combo
-                                  ? item.combo.name
-                                  : (item.customizations.product?.name || item.customizations.drink?.name || item.customizations.side?.name || 'Producto');
-                                return `${item.quantity}x ${itemName}`;
-                              }).join(', ')}
-                            </p>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">
+                                {order.items.map(item => {
+                                  const itemName = item.combo
+                                    ? item.combo.name
+                                    : (item.customizations.product?.name || item.customizations.drink?.name || item.customizations.side?.name || 'Producto');
+                                  return `${item.quantity}x ${itemName}`;
+                                }).join(', ')}
+                              </p>
+                              {order.status === 'cancelled' && (
+                                <Badge variant="destructive" className="text-xs">
+                                  Cancelado
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground capitalize">{order.deliveryType}</p>
+                            {order.status === 'cancelled' && order.cancellationReason && (
+                              <p className="text-xs text-red-600 mt-1">
+                                Razón: {order.cancellationReason}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <span className="font-bold text-lg">{formatCurrency(order.total)}</span>
+                        <span className={`font-bold text-lg ${
+                          order.status === 'cancelled' ? 'text-red-600 line-through' : ''
+                        }`}>
+                          {formatCurrency(order.total)}
+                        </span>
                       </div>
                     ))}
                   </div>

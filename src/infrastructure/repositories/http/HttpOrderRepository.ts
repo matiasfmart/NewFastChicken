@@ -85,4 +85,39 @@ export class HttpOrderRepository implements IOrderRepository {
       throw new Error(`Failed to delete order ${id}`);
     }
   }
+
+  async cancel(id: string, reason?: string): Promise<Order> {
+    const response = await fetch(`${this.baseUrl}/cancel`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, reason })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to cancel order');
+    }
+    return response.json();
+  }
+
+  async search(criteria: {
+    orderId?: string;
+    shiftId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    status?: 'completed' | 'cancelled' | 'all';
+  }): Promise<Order[]> {
+    const params = new URLSearchParams();
+
+    if (criteria.orderId) params.append('orderId', criteria.orderId);
+    if (criteria.shiftId) params.append('shiftId', criteria.shiftId);
+    if (criteria.startDate) params.append('startDate', criteria.startDate.toISOString());
+    if (criteria.endDate) params.append('endDate', criteria.endDate.toISOString());
+    if (criteria.status) params.append('status', criteria.status);
+
+    const response = await fetch(`${this.baseUrl}/search?${params}`);
+    if (!response.ok) {
+      throw new Error('Failed to search orders');
+    }
+    return response.json();
+  }
 }

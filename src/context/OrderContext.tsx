@@ -28,6 +28,8 @@ interface OrderContextType {
   checkStockForNewItem: (newItem: OrderItem) => { hasStock: boolean; missingProducts: string[] };
   finalizeOrder: () => Promise<Order | null>;
   startNewShift: () => void;
+  loadCurrentShiftOrders: () => Promise<Order[]>;
+  cancelOrder: (orderId: string, reason?: string) => Promise<void>;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
@@ -339,6 +341,53 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
     }
   };
 
+  /**
+   * Carga los pedidos de la jornada actual ordenados por fecha (más reciente primero)
+   * 🟥 PRESENTATION LAYER - UI orchestration
+   */
+  const loadCurrentShiftOrders = async (): Promise<Order[]> => {
+    try {
+      if (!currentShift) {
+        return [];
+      }
+      const orders = await OrderAPI.getByShiftId(currentShift.id);
+      // Ordenar por fecha descendente (más reciente primero)
+      return orders.sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt as any);
+        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt as any);
+        return dateB.getTime() - dateA.getTime();
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cargar pedidos';
+      toast({ variant: "destructive", title: "Error al cargar pedidos", description: errorMessage });
+      return [];
+    }
+  };
+
+  /**
+   * Cancela una orden y actualiza la jornada
+   * 🟥 PRESENTATION LAYER - UI orchestration
+   */
+  const cancelOrder = async (orderId: string, reason?: string): Promise<void> => {
+    try {
+      await OrderAPI.cancel(orderId, reason);
+
+      // Si hay jornada activa, refrescarla para actualizar los totales
+      if (currentShift) {
+        await refreshShift();
+      }
+
+      toast({
+        title: "Pedido cancelado",
+        description: "El pedido ha sido cancelado correctamente"
+      });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al cancelar pedido';
+      toast({ variant: "destructive", title: "Error al cancelar pedido", description: errorMessage });
+      throw error;
+    }
+  };
+
   // isLoading is false because data is now pre-fetched on the server
   const isLoading = false;
 
@@ -361,7 +410,9 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
         getAvailableStock,
         checkStockForNewItem,
         finalizeOrder,
-        startNewShift
+        startNewShift,
+        loadCurrentShiftOrders,
+        cancelOrder
       }}
     >
       {children}

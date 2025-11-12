@@ -5,14 +5,18 @@ import { FastChickenLogo } from "@/components/icons/FastChickenLogo";
 import { Button } from "@/components/ui/button";
 import { EndShiftDialog } from './EndShiftDialog';
 import { StartShiftDialog } from './StartShiftDialog';
+import { OrderSearchDialog } from './OrderSearchDialog';
 import { useShift } from '@/context/ShiftContext';
-import { User, Clock } from 'lucide-react';
+import { useOrder } from '@/context/OrderContext';
+import { User, Clock, Search } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 
 export function CashierHeader() {
   const { currentShift } = useShift();
+  const { loadCurrentShiftOrders, cancelOrder } = useOrder();
   const [isEndShiftOpen, setEndShiftOpen] = React.useState(false);
   const [isStartShiftOpen, setStartShiftOpen] = React.useState(false);
+  const [isSearchOpen, setSearchOpen] = React.useState(false);
   const [elapsedTime, setElapsedTime] = React.useState("");
 
   // Calcular tiempo transcurrido
@@ -65,6 +69,12 @@ export function CashierHeader() {
                 • ${currentShift.totalRevenue.toLocaleString('es-AR')}
               </div>
             </div>
+            <Button
+              variant="outline"
+              onClick={() => setSearchOpen(true)}
+            >
+              Cancelar Pedido
+            </Button>
             <Button variant="outline" onClick={() => setEndShiftOpen(true)}>
               Terminar Jornada
             </Button>
@@ -83,6 +93,12 @@ export function CashierHeader() {
       <EndShiftDialog
         isOpen={isEndShiftOpen}
         onClose={() => setEndShiftOpen(false)}
+      />
+      <OrderSearchDialog
+        isOpen={isSearchOpen}
+        onClose={() => setSearchOpen(false)}
+        onLoadOrders={loadCurrentShiftOrders}
+        onCancel={cancelOrder}
       />
     </>
   );

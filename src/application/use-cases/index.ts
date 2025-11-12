@@ -26,3 +26,9 @@ export type { DeleteDiscountInput } from './DeleteDiscountUseCase';
 
 export { AssignDiscountToComboUseCase } from './AssignDiscountToComboUseCase';
 export type { AssignDiscountToComboInput } from './AssignDiscountToComboUseCase';
+
+export { CancelOrderUseCase } from './CancelOrderUseCase';
+export type { CancelOrderInput } from './CancelOrderUseCase';
+
+export { SearchOrdersUseCase } from './SearchOrdersUseCase';
+export type { SearchOrdersInput } from './SearchOrdersUseCase';
