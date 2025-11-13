@@ -6,6 +6,10 @@ import { Toaster } from "@/components/ui/toaster"
 export const metadata: Metadata = {
   title: 'Fast Chicken POS',
   description: 'Point of Sale system for Fast Chicken restaurant.',
+  icons: {
+    icon: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
 };
 
 /**
