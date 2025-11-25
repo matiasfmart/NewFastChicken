@@ -2,6 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { MongoDBAppConfigRepository } from "@/infrastructure/repositories/mongodb/MongoDBAppConfigRepository";
 
 interface LoginState {
   success: boolean;
@@ -9,16 +10,34 @@ interface LoginState {
 }
 
 export async function login(previousState: LoginState, formData: FormData): Promise<LoginState> {
-  const user = formData.get("user");
-  const password = formData.get("password");
+  const user = formData.get("user") as string;
+  const password = formData.get("password") as string;
 
-  // In a real app, you'd validate against a database
-  if (user === "admin" && password === "admin") {
-    const cookieStore = await cookies();
-    cookieStore.set("session", "admin-user", { httpOnly: true, path: "/" });
-    return { success: true, error: null };
-  } else {
-    return { success: false, error: "Usuario o contraseña inválidos" };
+  try {
+    // Inicializar repository y obtener configuración
+    const repository = await MongoDBAppConfigRepository.initialize();
+
+    // Asegurar que existe configuración por defecto
+    await repository.ensureDefaultConfig();
+
+    // Obtener configuración actual
+    const config = await repository.getConfig();
+
+    if (!config) {
+      return { success: false, error: "Error de configuración del sistema" };
+    }
+
+    // Validar credenciales contra la base de datos
+    if (user === config.adminUsername && password === config.adminPassword) {
+      const cookieStore = await cookies();
+      cookieStore.set("session", "admin-user", { httpOnly: true, path: "/" });
+      return { success: true, error: null };
+    } else {
+      return { success: false, error: "Usuario o contraseña inválidos" };
+    }
+  } catch (error) {
+    console.error("Error en login:", error);
+    return { success: false, error: "Error al validar credenciales" };
   }
 }
 

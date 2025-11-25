@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Home, Package, ShoppingCart, Users, Clock, LogOut, Percent } from "lucide-react";
+import { Home, Package, ShoppingCart, Users, Clock, LogOut, Percent, Settings } from "lucide-react";
 import { FastChickenLogo } from "../icons/FastChickenLogo";
 import { logout } from "@/lib/actions";
 
@@ -14,6 +14,7 @@ const navItems = [
     { href: "/admin/discounts", icon: Percent, label: "Descuentos" },
     { href: "/admin/employees", icon: Users, label: "Empleados" },
     { href: "/admin/shifts", icon: Clock, label: "Jornadas" },
+    { href: "/admin/settings", icon: Settings, label: "Configuración" },
 ]
 
 export function AdminSidebar() {
