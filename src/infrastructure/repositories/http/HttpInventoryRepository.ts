@@ -10,7 +10,7 @@
 
 import type { IInventoryRepository } from '@/domain/repositories/IInventoryRepository';
 import type { InventoryItem } from '@/lib/types';
-import type { CreateInventoryItemDTO, UpdateInventoryItemDTO } from '@/dtos';
+import type { CreateInventoryDTO, UpdateInventoryDTO } from '@/dtos';
 
 export class HttpInventoryRepository implements IInventoryRepository {
   private baseUrl: string;
@@ -35,7 +35,7 @@ export class HttpInventoryRepository implements IInventoryRepository {
     return response.json();
   }
 
-  async create(dto: CreateInventoryItemDTO): Promise<InventoryItem> {
+  async create(dto: CreateInventoryDTO): Promise<InventoryItem> {
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -47,7 +47,7 @@ export class HttpInventoryRepository implements IInventoryRepository {
     return response.json();
   }
 
-  async update(id: string, dto: UpdateInventoryItemDTO): Promise<void> {
+  async update(id: string, dto: UpdateInventoryDTO): Promise<void> {
     const response = await fetch(this.baseUrl, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

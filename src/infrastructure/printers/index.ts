@@ -4,5 +4,5 @@
  * Exporta todas las implementaciones de impresoras
  */
 
-export { IPrinter } from './IPrinter';
+export type { IPrinter } from './IPrinter';
 export { BrowserPrinter, browserPrinter } from './BrowserPrinter';

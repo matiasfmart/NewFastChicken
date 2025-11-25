@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  fastchicken:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastchicken-app
+    ports:
+      - "3000:3000"
+    # El .env ya está compilado dentro de la imagen
+    # No es necesario pasar variables de entorno externas
+    restart: unless-stopped
+    networks:
+      - fastchicken-network
+
+networks:
+  fastchicken-network:
+    driver: bridge

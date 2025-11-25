@@ -282,6 +282,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
         subtotal,
         discount: subtotal - total,
         total,
+        status: 'completed',
         createdAt: new Date(),
     };
 

@@ -27,8 +27,7 @@ export class MongoDBInventoryRepository implements IInventoryRepository {
       name: doc.name,
       type: doc.type, // ✅ Campo type agregado - CRÍTICO para el filtro
       price: doc.price,
-      stock: doc.stock,
-      category: doc.category // Opcional - solo para bebidas
+      stock: doc.stock
     };
   }
 

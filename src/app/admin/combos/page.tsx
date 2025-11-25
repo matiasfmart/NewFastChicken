@@ -230,7 +230,7 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
                             <Label className="text-sm font-semibold">Vista previa del combo:</Label>
                             <div className="space-y-2 text-sm">
                                 {/* Productos fijos */}
-                                {Array.from(comboAnalysis.productsByType.entries())
+                                {comboAnalysis.productsByType && Array.from(comboAnalysis.productsByType.entries())
                                     .filter(([_, data]) => data.fixed > 0)
                                     .map(([type, data]) => (
                                         <div key={`fixed-${type}`} className="flex items-center gap-2">
@@ -252,7 +252,7 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
                                 ))}
 
                                 {/* Advertencias */}
-                                {Array.from(comboAnalysis.productsByType.entries())
+                                {comboAnalysis.productsByType && Array.from(comboAnalysis.productsByType.entries())
                                     .filter(([_, data]) => data.selectable === 1)
                                     .map(([type, _]) => (
                                         <div key={`warning-${type}`} className="flex items-center gap-2">

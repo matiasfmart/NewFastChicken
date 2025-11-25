@@ -1,4 +1,4 @@
-import type { OrderItem, DeliveryType } from '@/lib/types';
+import type { OrderItem, DeliveryType, OrderStatus } from '@/lib/types';
 
 /**
  * DTO para crear una orden
@@ -11,6 +11,7 @@ export interface CreateOrderDTO {
   subtotal: number;
   discount: number;
   total: number;
+  status: OrderStatus;
   createdAt: Date;
 }
 

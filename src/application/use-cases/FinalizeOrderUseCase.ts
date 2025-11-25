@@ -53,6 +53,7 @@ export class FinalizeOrderUseCase {
       subtotal: input.subtotal,
       discount: input.discount,
       total: input.total,
+      status: 'completed' as const,
       createdAt: new Date(),
     };
 
