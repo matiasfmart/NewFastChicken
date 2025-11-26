@@ -9,7 +9,7 @@ REM ============================================================
 setlocal EnableDelayedExpansion
 
 REM Configuración
-set IMAGE_NAME=tuusuario/fastchicken-app
+set IMAGE_NAME=matiasfmartz/fastchicken-app
 set CONTAINER_NAME=fastchicken
 set PORT=3000
 

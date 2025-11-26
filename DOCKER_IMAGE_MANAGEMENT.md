@@ -302,7 +302,18 @@ git commit -m "feat: nuevas funcionalidades"
 #### 2. **Reconstruir la Imagen con Nueva Versión**
 
 ```bash
-# Incrementa la versión (ej: de 1.0.0 a 1.1.0)
+# ⚠️ IMPORTANTE: Si cambiaste el .env, DEBES reconstruir la imagen
+# El .env está compilado DENTRO de la imagen Docker, no se lee en runtime
+
+# Si estás en Mac M1/M2/M3 y vas a Windows:
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t tuusuario/fastchicken-app:1.1.0 \
+  -t tuusuario/fastchicken-app:latest \
+  --push \
+  .
+
+# Si NO necesitas multiplataforma:
 docker build -t tuusuario/fastchicken-app:1.1.0 -t tuusuario/fastchicken-app:latest .
 ```
 
@@ -587,6 +598,63 @@ docker buildx imagetools inspect tuusuario/fastchicken-app:latest
 # 10. Limpieza en Windows
 # docker image prune -a
 ```
+
+---
+
+## 🚨 Problemas Comunes
+
+### "Cambié las credenciales de MongoDB en Atlas pero la app sigue funcionando"
+
+**Esto es NORMAL y esperado** con esta configuración de Docker.
+
+**¿Por qué pasa esto?**
+- El archivo `.env` está **compilado DENTRO de la imagen Docker** durante el build
+- Cuando ejecutas la imagen, usa las credenciales que tenía el `.env` en el momento de construir la imagen
+- Los cambios en Atlas no afectan a las credenciales almacenadas en la imagen
+
+**Solución:**
+1. Actualiza tu archivo `.env` local con las nuevas credenciales
+2. **Reconstruye la imagen Docker**:
+   ```bash
+   # Mac M1/M2/M3 → Windows
+   docker buildx build \
+     --platform linux/amd64,linux/arm64 \
+     -t tuusuario/fastchicken-app:latest \
+     --push \
+     .
+
+   # Build normal
+   docker build -t tuusuario/fastchicken-app:latest .
+   ```
+3. Si ya hiciste push, actualiza en Windows:
+   ```bash
+   docker pull tuusuario/fastchicken-app:latest
+   docker stop fastchicken && docker rm fastchicken
+   docker run -d -p 3000:3000 --name fastchicken tuusuario/fastchicken-app:latest
+   ```
+
+**Cuándo DEBES reconstruir la imagen:**
+- ✅ Cambios en `.env` (credenciales, URLs, configuración)
+- ✅ Cambios en código fuente
+- ✅ Cambios en dependencias (`package.json`)
+- ✅ Cambios en configuración de Next.js
+
+### "La app no se conecta a MongoDB después de rebuild"
+
+**Verificaciones:**
+1. ¿El `.env` tiene las credenciales correctas?
+   ```bash
+   cat .env | grep MONGODB
+   ```
+
+2. ¿Las credenciales en Atlas coinciden con el `.env`?
+
+3. ¿Reconstruiste la imagen DESPUÉS de actualizar el `.env`?
+
+4. ¿Hiciste pull de la nueva imagen en Windows?
+   ```bash
+   docker pull tuusuario/fastchicken-app:latest
+   ```
 
 ---
 
