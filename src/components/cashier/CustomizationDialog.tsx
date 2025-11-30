@@ -215,8 +215,8 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
       .filter(Boolean) as InventoryItem[];
 
     return (
-      <div key={type} className="space-y-2">
-        <h3 className="font-semibold">
+      <div key={type} className="space-y-3">
+        <h3 className="font-semibold text-base">
           {getTypeLabel(type)} <span className="text-sm text-muted-foreground">(Elige una opción)</span>
         </h3>
         <RadioGroup
@@ -228,9 +228,17 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
           }}
         >
           {inventoryItems.map(i => (
-            <div key={i.id} className="flex items-center space-x-2">
-              <RadioGroupItem value={i.id} id={`${type}-${i.id}`} disabled={getAvailableStock(i.id) <= 0} />
-              <Label htmlFor={`${type}-${i.id}`} className="flex-1 has-[:disabled]:text-muted-foreground">
+            <div key={i.id} className="flex items-center space-x-3 min-h-[48px] py-2">
+              <RadioGroupItem
+                value={i.id}
+                id={`${type}-${i.id}`}
+                disabled={getAvailableStock(i.id) <= 0}
+                className="h-6 w-6"
+              />
+              <Label
+                htmlFor={`${type}-${i.id}`}
+                className="flex-1 has-[:disabled]:text-muted-foreground text-base cursor-pointer py-2"
+              >
                 {i.name}
               </Label>
               {getStockStatus(i.id)}
@@ -291,24 +299,24 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
             </div>
 
             {inventoryItem.type === 'product' && (
-              <div className="flex items-center justify-between pt-2 border-t">
-                <Label htmlFor="is-spicy-individual" className="flex items-center gap-2 font-semibold text-destructive">
-                  <Flame className="h-4 w-4" /> ¿Con picante?
+              <div className="flex items-center justify-between min-h-[56px] py-3 border-t">
+                <Label htmlFor="is-spicy-individual" className="flex items-center gap-2 font-semibold text-destructive text-base cursor-pointer">
+                  <Flame className="h-5 w-5" /> ¿Con picante?
                 </Label>
-                <Switch id="is-spicy-individual" checked={isSpicy} onCheckedChange={setIsSpicy} />
+                <Switch id="is-spicy-individual" checked={isSpicy} onCheckedChange={setIsSpicy} className="scale-125" />
               </div>
             )}
 
             {inventoryItem.type === 'drink' && (
-              <div className="flex items-center justify-between pt-2 border-t">
-                <Label htmlFor="with-ice-individual" className="font-semibold">¿Con hielo?</Label>
-                <Switch id="with-ice-individual" checked={withIce} onCheckedChange={setWithIce} />
+              <div className="flex items-center justify-between min-h-[56px] py-3 border-t">
+                <Label htmlFor="with-ice-individual" className="font-semibold text-base cursor-pointer">¿Con hielo?</Label>
+                <Switch id="with-ice-individual" checked={withIce} onCheckedChange={setWithIce} className="scale-125" />
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={noStock}>Agregar al Pedido</Button>
+          <DialogFooter className="gap-3 sm:gap-3">
+            <Button variant="ghost" onClick={onClose} className="h-12 text-base flex-1">Cancelar</Button>
+            <Button onClick={handleSubmit} disabled={noStock} className="h-12 text-base flex-1">Agregar al Pedido</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -346,25 +354,25 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
 
             {/* Opciones de hielo y picante */}
             {hasDrinks && (
-              <div className="flex items-center justify-between">
-                <Label htmlFor="with-ice" className="font-semibold">¿Con hielo?</Label>
-                <Switch id="with-ice" checked={withIce} onCheckedChange={setWithIce} />
+              <div className="flex items-center justify-between min-h-[56px] py-3 border-t pt-4">
+                <Label htmlFor="with-ice" className="font-semibold text-base cursor-pointer">¿Con hielo?</Label>
+                <Switch id="with-ice" checked={withIce} onCheckedChange={setWithIce} className="scale-125" />
               </div>
             )}
 
             {hasProducts && (
-              <div className="flex items-center justify-between">
-                <Label htmlFor="is-spicy" className="flex items-center gap-2 font-semibold text-destructive">
-                  <Flame className="h-4 w-4" /> ¿Con picante?
+              <div className="flex items-center justify-between min-h-[56px] py-3 border-t pt-4">
+                <Label htmlFor="is-spicy" className="flex items-center gap-2 font-semibold text-destructive text-base cursor-pointer">
+                  <Flame className="h-5 w-5" /> ¿Con picante?
                 </Label>
-                <Switch id="is-spicy" checked={isSpicy} onCheckedChange={setIsSpicy} />
+                <Switch id="is-spicy" checked={isSpicy} onCheckedChange={setIsSpicy} className="scale-125" />
               </div>
             )}
           </div>
         </ScrollArea>
-        <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSubmit} disabled={!!overallStockWarning}>Agregar al Pedido</Button>
+        <DialogFooter className="gap-3 sm:gap-3">
+          <Button variant="ghost" onClick={onClose} className="h-12 text-base flex-1">Cancelar</Button>
+          <Button onClick={handleSubmit} disabled={!!overallStockWarning} className="h-12 text-base flex-1">Agregar al Pedido</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
