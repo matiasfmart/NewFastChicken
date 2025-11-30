@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -31,7 +31,10 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
 
   // Analizar estructura del combo para mostrar feedback visual
   const comboAnalysis = useMemo(() => {
-    if (!formData?.products) return { selectableGroups: new Map(), fixedProducts: [] };
+    if (!formData?.products) return {
+      selectableGroups: new Map<string, number>(),
+      productsByType: new Map<string, { fixed: number; selectable: number; items: ComboProduct[] }>()
+    };
 
     const productsByType = new Map<string, { fixed: number; selectable: number; items: ComboProduct[] }>();
 
@@ -78,19 +81,25 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
     setFormData(prev => prev ? ({ ...prev, [name]: type === 'number' ? parseFloat(value) || 0 : value }) : null);
   };
 
-  const handleProductChange = (index: number, field: 'productId' | 'quantity' | 'isFixed', value: string | boolean) => {
-    if (!formData) return;
-    const updatedProducts = [...(formData.products || [])];
+  // ✅ FIX: Memoizar handler para evitar re-renders durante la interacción con Select Portal
+  // Esto previene el error "removeChild" que ocurre en producción cuando el DOM se actualiza
+  // mientras el Portal de Radix UI está abierto
+  const handleProductChange = useCallback((index: number, field: 'productId' | 'quantity' | 'isFixed', value: string | boolean) => {
+    setFormData(prev => {
+      if (!prev) return null;
+      const updatedProducts = [...(prev.products || [])];
 
-    if (field === 'quantity') {
-      updatedProducts[index] = { ...updatedProducts[index], quantity: parseInt(value as string, 10) || 1 };
-    } else if (field === 'isFixed') {
-      updatedProducts[index] = { ...updatedProducts[index], isFixed: value as boolean };
-    } else {
-      updatedProducts[index] = { ...updatedProducts[index], productId: value as string };
-    }
-    setFormData(prev => prev ? ({ ...prev, products: updatedProducts }) : null);
-  };
+      if (field === 'quantity') {
+        updatedProducts[index] = { ...updatedProducts[index], quantity: parseInt(value as string, 10) || 1 };
+      } else if (field === 'isFixed') {
+        updatedProducts[index] = { ...updatedProducts[index], isFixed: value as boolean };
+      } else {
+        updatedProducts[index] = { ...updatedProducts[index], productId: value as string };
+      }
+
+      return { ...prev, products: updatedProducts };
+    });
+  }, []);
 
   const addProduct = () => {
     if (inventoryItems.length === 0) return;
@@ -164,7 +173,7 @@ function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial
                             const willBeSelectable = sameTypeSelectable >= 2;
 
                             return (
-                                <div key={index} className="flex flex-col gap-2 p-3 border rounded-lg">
+                                <div key={`product-${index}-${p.productId}`} className="flex flex-col gap-2 p-3 border rounded-lg">
                                     <div className="flex items-center gap-2">
                                         <Select value={p.productId} onValueChange={(value) => handleProductChange(index, 'productId', value)}>
                                             <SelectTrigger className="flex-1">

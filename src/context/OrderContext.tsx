@@ -51,8 +51,18 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   const prevOrderItemsRef = useRef<OrderItem[]>([]);
   const isApplyingDiscountsRef = useRef(false);
   
-  const [currentOrderNumber, setCurrentOrderNumber] = useState(1);
+  // ✅ Inicializar con el próximo número de orden de la jornada actual
+  const [currentOrderNumber, setCurrentOrderNumber] = useState(() => {
+    return currentShift ? (currentShift.totalOrders || 0) + 1 : 1;
+  });
   const [completedOrders, setCompletedOrders] = useState<Order[]>([]);
+
+  // ✅ Sincronizar currentOrderNumber con el shift actual
+  useEffect(() => {
+    if (currentShift) {
+      setCurrentOrderNumber((currentShift.totalOrders || 0) + 1);
+    }
+  }, [currentShift]);
 
   useEffect(() => {
     // Initialize stock from the server-provided inventory
@@ -254,7 +264,7 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   const startNewShift = useCallback(() => {
     clearOrder();
     setCompletedOrders([]);
-    setCurrentOrderNumber(1);
+    // ✅ No resetear manualmente - el useEffect lo sincronizará cuando cambie currentShift
   }, [clearOrder]);
 
   const finalizeOrder = async (): Promise<Order | null> => {
@@ -289,19 +299,9 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
     try {
         const finalOrder = await OrderAPI.create(newOrderData);
 
-        // Actualizar totales de la jornada activa si existe
-        if (currentShift) {
-          await ShiftAPI.update(currentShift.id, {
-            totalOrders: currentShift.totalOrders + 1,
-            totalRevenue: currentShift.totalRevenue + total
-          });
-          // Refrescar el estado de la jornada
-          await refreshShift();
-        }
-
-        // After transaction is successful, update state
+        // ✅ Actualizar estado local con el número de orden generado por MongoDB
         setCompletedOrders(prev => [...prev, finalOrder]);
-        setCurrentOrderNumber(prev => prev + 1);
+        setCurrentOrderNumber(finalOrder.orderNumber || currentOrderNumber + 1);
 
         // Manually update local stock state for immediate UI feedback
         setInventoryStock(currentStock => {
@@ -333,6 +333,13 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
         });
 
         clearOrder();
+
+        // ✅ Refrescar shift en segundo plano (sin bloquear el retorno)
+        // El shift ya se actualizó en MongoDBOrderRepository, solo sincronizamos UI
+        if (currentShift) {
+          refreshShift().catch(err => console.error('Error refreshing shift:', err));
+        }
+
         return finalOrder;
 
     } catch (error) {

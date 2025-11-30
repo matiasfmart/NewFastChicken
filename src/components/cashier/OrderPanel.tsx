@@ -65,7 +65,7 @@ export function OrderPanel() {
     <>
       <div className="flex h-full flex-col">
         <div className="p-4">
-          <h2 className="text-xl font-bold">Pedido #{currentOrderNumber.toString().padStart(4, '0')}</h2>
+          <h2 className="text-xl font-bold">Pedido #{currentOrderNumber.toString().padStart(3, '0')}</h2>
         </div>
         <Separator />
         <ScrollArea className="flex-1">

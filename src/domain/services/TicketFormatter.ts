@@ -14,15 +14,17 @@ export class TicketFormatter {
    * Formatea un ticket de cliente para impresión
    */
   static formatCustomerTicket(order: Order): string {
-    const orderId = this.formatOrderId(order.id);
+    const orderNumber = this.formatOrderNumber(order.orderNumber);
     const date = this.formatDate(order.createdAt);
     const time = this.formatTime(order.createdAt);
     const deliveryText = this.getDeliveryText(order.deliveryType);
 
     let ticket = '';
-    ticket += this.centerText('FAST CHICKEN') + '\n';
+    ticket += '\n';
+    ticket += this.centerText('{{BRAND:FAST CHICKEN}}') + '\n';
+    ticket += '\n';
     ticket += this.centerText('================================') + '\n';
-    ticket += this.centerText(`ORDEN #${orderId}`) + '\n';
+    ticket += this.centerText(`ORDEN #${orderNumber}`) + '\n';
     ticket += this.centerText('================================') + '\n';
     ticket += '\n';
     ticket += `Fecha: ${date}\n`;
@@ -58,14 +60,14 @@ export class TicketFormatter {
    * Formatea un ticket de cocina para impresión
    */
   static formatKitchenTicket(order: Order): string {
-    const orderId = this.formatOrderId(order.id);
+    const orderNumber = this.formatOrderNumber(order.orderNumber);
     const time = this.formatTime(order.createdAt);
     const deliveryText = this.getDeliveryText(order.deliveryType);
 
     let ticket = '';
     ticket += this.centerText('***** COCINA *****') + '\n';
     ticket += this.centerText('================================') + '\n';
-    ticket += this.centerText(`ORDEN #${orderId}`) + '\n';
+    ticket += this.centerText(`ORDEN #${orderNumber}`) + '\n';
     ticket += this.centerText('================================') + '\n';
     ticket += '\n';
     ticket += `Hora: ${time}\n`;
@@ -139,13 +141,14 @@ export class TicketFormatter {
   }
 
   /**
-   * Formatea el ID de la orden
+   * Formatea el número de orden para mostrar en tickets
+   * Convierte números secuenciales en formato con padding (ej: 1 -> 001)
+   *
+   * ✅ Método público para poder ser usado también en UI components
    */
-  private static formatOrderId(id: string | number): string {
-    if (typeof id === 'string') {
-      return id.substring(0, 6).toUpperCase();
-    }
-    return id.toString().padStart(6, '0');
+  static formatOrderNumber(orderNumber?: number): string {
+    if (!orderNumber) return '---'; // Fallback para órdenes antiguas sin orderNumber
+    return orderNumber.toString().padStart(3, '0');
   }
 
   /**

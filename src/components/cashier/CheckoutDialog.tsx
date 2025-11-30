@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +19,8 @@ interface CheckoutDialogProps {
   onClose: () => void;
 }
 
-const TicketLayout = ({ order, isKitchen, className }: { order: Order; isKitchen: boolean; className?: string }) => {
+// ✅ Memoizar TicketLayout para evitar re-renders innecesarios
+const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKitchen: boolean; className?: string }) => {
 
   const deliveryText = {
       local: 'Para comer acá',
@@ -92,13 +93,14 @@ const TicketLayout = ({ order, isKitchen, className }: { order: Order; isKitchen
     );
   }
 
-  const orderId = typeof order.id === 'string' ? order.id.substring(0, 6).toUpperCase() : order.id.toString().padStart(6, '0');
+  // ✅ Usar el número de orden secuencial formateado del domain layer
+  const orderNumber = TicketFormatter.formatOrderNumber(order.orderNumber);
 
   return (
     <div className={`ticket-layout w-full bg-white text-black p-4 font-mono text-xs ${className || ''}`}>
       <div className="text-center space-y-1">
         {!isKitchen && <FastChickenLogo className="justify-center scale-75" />}
-        <h2 className="text-base font-bold">{isKitchen ? 'COCINA' : `ORDEN #${orderId}`}</h2>
+        <h2 className="text-base font-bold">{isKitchen ? 'COCINA' : `ORDEN #${orderNumber}`}</h2>
       </div>
       <Separator className="separator my-2 border-dashed border-black" />
       <div className="space-y-2">
@@ -138,7 +140,7 @@ const TicketLayout = ({ order, isKitchen, className }: { order: Order; isKitchen
       </div>
     </div>
   );
-};
+});
 
 export function CheckoutDialog({ order, onClose }: CheckoutDialogProps) {
   const [isPrinting, setIsPrinting] = useState(false);
@@ -208,15 +210,20 @@ export function CheckoutDialog({ order, onClose }: CheckoutDialogProps) {
               <TabsTrigger value="customer">Ticket Cliente</TabsTrigger>
               <TabsTrigger value="kitchen">Ticket Cocina</TabsTrigger>
             </TabsList>
+            {/* ✅ Solo renderizar el tab activo para mejorar performance */}
             <TabsContent value="customer" className="mt-0">
-              <div className="bg-gray-200 p-2 rounded-md">
-                <TicketLayout order={order} isKitchen={false} className="print-content" />
-              </div>
+              {activeTab === 'customer' && (
+                <div className="bg-gray-200 p-2 rounded-md">
+                  <TicketLayout order={order} isKitchen={false} className="print-content" />
+                </div>
+              )}
             </TabsContent>
             <TabsContent value="kitchen" className="mt-0">
-              <div className="bg-gray-200 p-2 rounded-md">
-                <TicketLayout order={order} isKitchen={true} className="print-content" />
-              </div>
+              {activeTab === 'kitchen' && (
+                <div className="bg-gray-200 p-2 rounded-md">
+                  <TicketLayout order={order} isKitchen={true} className="print-content" />
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

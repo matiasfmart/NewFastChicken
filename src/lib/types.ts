@@ -88,6 +88,7 @@ export type OrderStatus = 'completed' | 'cancelled';
 
 export interface Order {
   id: number | string;
+  orderNumber?: number; // Número secuencial para mostrar en tickets (ej: 1, 2, 3...) - Auto-generado
   shiftId?: string; // Vincula la orden con una jornada
   items: OrderItem[];
   deliveryType: DeliveryType;

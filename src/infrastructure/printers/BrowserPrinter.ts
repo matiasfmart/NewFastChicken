@@ -13,8 +13,18 @@ export class BrowserPrinter implements IPrinter {
   /**
    * Imprime contenido de texto plano
    * Convierte el texto a HTML pre-formateado y lo imprime
+   * Soporta marcadores especiales para estilos ({{BRAND:texto}})
    */
   async print(content: string): Promise<void> {
+    // Procesar contenido para detectar marcadores especiales
+    let processedContent = this.escapeHTML(content);
+
+    // Reemplazar marcador {{BRAND:texto}} con HTML estilizado
+    processedContent = processedContent.replace(
+      /\{\{BRAND:(.*?)\}\}/g,
+      '<span class="brand-text">$1</span>'
+    );
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -35,8 +45,9 @@ export class BrowserPrinter implements IPrinter {
 
             body {
               font-family: 'Courier New', monospace;
-              font-size: 12px;
-              line-height: 1.4;
+              font-size: 14px;
+              font-weight: 600;
+              line-height: 1.5;
               width: 80mm;
               padding: 5mm;
               color: #000;
@@ -45,10 +56,20 @@ export class BrowserPrinter implements IPrinter {
 
             pre {
               font-family: 'Courier New', monospace;
-              font-size: 12px;
+              font-size: 14px;
+              font-weight: 600;
               white-space: pre-wrap;
               word-wrap: break-word;
               margin: 0;
+            }
+
+            /* Estilo especial para el nombre de la marca */
+            .brand-text {
+              font-size: 20px;
+              font-weight: 900;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              display: inline-block;
             }
 
             @media print {
@@ -61,7 +82,7 @@ export class BrowserPrinter implements IPrinter {
           </style>
         </head>
         <body>
-          <pre>${this.escapeHTML(content)}</pre>
+          <pre>${processedContent}</pre>
         </body>
       </html>
     `;

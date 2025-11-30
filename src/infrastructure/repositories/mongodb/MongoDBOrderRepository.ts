@@ -15,10 +15,26 @@ import { getMongoClient } from '@/lib/mongodb';
 export class MongoDBOrderRepository implements IOrderRepository {
   private collection: Collection;
   private inventoryCollection: Collection;
+  private shiftCollection: Collection;
 
   constructor(db: Db) {
     this.collection = db.collection('orders');
     this.inventoryCollection = db.collection('inventory');
+    this.shiftCollection = db.collection('shifts');
+  }
+
+  /**
+   * Obtiene el siguiente número de orden para una jornada específica
+   * Usa el totalOrders actual del shift + 1
+   * ✅ Esto asegura que cada jornada tenga numeración independiente (1, 2, 3...)
+   */
+  private async getNextOrderNumberForShift(shiftId: string): Promise<number> {
+    const shift = await this.shiftCollection.findOne({ _id: new ObjectId(shiftId) });
+    if (!shift) {
+      throw new Error('Shift not found');
+    }
+    // El próximo número es totalOrders + 1
+    return (shift.totalOrders || 0) + 1;
   }
 
   /**
@@ -27,6 +43,7 @@ export class MongoDBOrderRepository implements IOrderRepository {
   private toOrder(doc: any): Order {
     return {
       id: doc._id.toString(),
+      orderNumber: doc.orderNumber || 0, // Compatibilidad con órdenes antiguas
       shiftId: doc.shiftId,
       items: doc.items,
       deliveryType: doc.deliveryType,
@@ -128,13 +145,32 @@ export class MongoDBOrderRepository implements IOrderRepository {
         );
       }
 
-      // Insertar la orden con estado 'completed' por defecto
+      // ✅ Obtener el siguiente número de orden para esta jornada específica
+      if (!order.shiftId) {
+        throw new Error('shiftId is required to create an order');
+      }
+
+      const orderNumber = await this.getNextOrderNumberForShift(order.shiftId);
+
+      // Insertar la orden con estado 'completed' por defecto y orderNumber
       const orderData = {
         ...order,
+        orderNumber,
         status: 'completed' as const
       };
 
       const result = await this.collection.insertOne(orderData);
+
+      // ✅ Actualizar el contador de órdenes y revenue en el shift
+      await this.shiftCollection.updateOne(
+        { _id: new ObjectId(order.shiftId) },
+        {
+          $inc: {
+            totalOrders: 1,
+            totalRevenue: order.total
+          }
+        }
+      );
 
       return {
         ...orderData,
