@@ -118,6 +118,9 @@ export class BrowserPrinter implements IPrinter {
           throw new Error('No se pudo crear el iframe de impresión');
         }
 
+        // ✅ Flag para prevenir doble impresión
+        let hasBeenPrinted = false;
+
         // Escribir HTML en el iframe
         iframeDocument.open();
         iframeDocument.write(html);
@@ -125,6 +128,9 @@ export class BrowserPrinter implements IPrinter {
 
         // Esperar a que cargue el contenido
         iframe.onload = () => {
+          if (hasBeenPrinted) return; // ✅ Prevenir duplicados
+          hasBeenPrinted = true;
+
           try {
             // Trigger print dialog
             iframeWindow.focus();
@@ -132,17 +138,24 @@ export class BrowserPrinter implements IPrinter {
 
             // Cleanup después de un delay
             setTimeout(() => {
-              document.body.removeChild(iframe);
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe);
+              }
               resolve();
             }, 1000);
           } catch (error) {
-            document.body.removeChild(iframe);
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
             reject(error);
           }
         };
 
         // Fallback si onload no se dispara
         setTimeout(() => {
+          if (hasBeenPrinted) return; // ✅ Prevenir duplicados
+          hasBeenPrinted = true;
+
           if (document.body.contains(iframe)) {
             try {
               iframeWindow.focus();
