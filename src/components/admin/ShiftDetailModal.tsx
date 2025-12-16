@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { ShiftAPI, OrderAPI } from '@/api';
 import type { Shift, Order } from '@/lib/types';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { DollarSign, Package, TrendingUp, Clock, User, Calendar, AlertCircle } from 'lucide-react';
+import { DollarSign, Package, TrendingUp, Clock, User, Calendar, AlertCircle, Printer } from 'lucide-react';
+import { browserPrinter } from '@/infrastructure/printers';
+import { TicketFormatter } from '@/domain/services/TicketFormatter';
 
 interface ShiftDetailModalProps {
   shiftId: string | null;
@@ -21,12 +24,43 @@ export function ShiftDetailModal({ shiftId, isOpen, onClose }: ShiftDetailModalP
   const [shift, setShift] = useState<Shift | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   useEffect(() => {
     if (shiftId && isOpen) {
       fetchShiftDetails();
     }
   }, [shiftId, isOpen]);
+
+  // ✅ Función para imprimir resumen de jornada
+  const handlePrintSummary = useCallback(async () => {
+    if (!shift) return;
+
+    // ✅ Solo permitir impresión si la jornada está cerrada (tiene actualCash)
+    if (!shift.actualCash) {
+      alert('Solo se puede imprimir el resumen de jornadas cerradas');
+      return;
+    }
+
+    if (!browserPrinter.isAvailable()) {
+      alert('La impresión no está disponible en este navegador');
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      // Formatear ticket usando domain service
+      const ticketContent = TicketFormatter.formatShiftSummaryTicket(shift, orders);
+
+      // Imprimir
+      await browserPrinter.print(ticketContent);
+    } catch (error) {
+      console.error('Error printing shift summary:', error);
+      alert('Error al imprimir. Por favor, intente nuevamente.');
+    } finally {
+      setIsPrinting(false);
+    }
+  }, [shift, orders]);
 
   const fetchShiftDetails = async () => {
     if (!shiftId) return;
@@ -336,6 +370,24 @@ export function ShiftDetailModal({ shiftId, isOpen, onClose }: ShiftDetailModalP
           <div className="text-center py-8">
             <p className="text-muted-foreground">No se pudo cargar la información de la jornada</p>
           </div>
+        )}
+
+        {/* ✅ Footer con botón de impresión */}
+        {shift && shift.status === 'closed' && shift.actualCash !== undefined && (
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={handlePrintSummary}
+              disabled={isPrinting || isLoading}
+              className="gap-2"
+            >
+              <Printer className="h-4 w-4" />
+              {isPrinting ? "Imprimiendo..." : "Imprimir Resumen"}
+            </Button>
+            <Button variant="secondary" onClick={onClose}>
+              Cerrar
+            </Button>
+          </DialogFooter>
         )}
       </DialogContent>
     </Dialog>

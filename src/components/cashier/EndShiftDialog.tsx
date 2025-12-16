@@ -7,8 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOrder } from "@/context/OrderContext";
 import { useShift } from "@/context/ShiftContext";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Timestamp } from "firebase/firestore";
+import { browserPrinter } from "@/infrastructure/printers";
+import { TicketFormatter } from "@/domain/services/TicketFormatter";
+import { Printer } from "lucide-react";
 
 interface EndShiftDialogProps {
   isOpen: boolean;
@@ -16,11 +19,47 @@ interface EndShiftDialogProps {
 }
 
 export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
-  const { startNewShift } = useOrder();
+  const { startNewShift, loadCurrentShiftOrders } = useOrder();
   const { currentShift, endShift } = useShift();
   const [actualCash, setActualCash] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
+  // ✅ IMPORTANTE: useCallback debe estar ANTES de cualquier early return
+  const handlePrintSummary = useCallback(async () => {
+    if (!currentShift) return;
+
+    // ✅ Validar que se haya ingresado el efectivo contado
+    const cashAmount = parseFloat(actualCash) || 0;
+    if (!actualCash || cashAmount <= 0) {
+      alert('Debe ingresar el efectivo real contado antes de imprimir el resumen');
+      return;
+    }
+
+    if (!browserPrinter.isAvailable()) {
+      alert('La impresión no está disponible en este navegador');
+      return;
+    }
+
+    setIsPrinting(true);
+    try {
+      // Cargar órdenes de la jornada para incluir detalle de canceladas
+      const orders = await loadCurrentShiftOrders();
+
+      // ✅ Formatear ticket pasando el efectivo contado como parámetro
+      const ticketContent = TicketFormatter.formatShiftSummaryTicket(currentShift, orders, cashAmount);
+
+      // Imprimir
+      await browserPrinter.print(ticketContent);
+    } catch (error) {
+      console.error('Error printing shift summary:', error);
+      alert('Error al imprimir. Por favor, intente nuevamente.');
+    } finally {
+      setIsPrinting(false);
+    }
+  }, [currentShift, loadCurrentShiftOrders, actualCash]);
+
+  // ✅ Early return DESPUÉS de todos los hooks
   if (!currentShift) return null;
 
   const expectedCash = currentShift.initialCash + currentShift.totalRevenue;
@@ -48,12 +87,12 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>CIERRE DE JORNADA</DialogTitle>
           <DialogDescription>Resumen y arqueo de caja</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
+        <div className="space-y-4 py-4 overflow-y-auto flex-1">
           {/* Información de la jornada */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
@@ -132,17 +171,28 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
             )}
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={handleClose} disabled={isSubmitting}>
-            Cancelar
-          </Button>
+        <DialogFooter className="gap-2 sm:gap-2">
           <Button
-            variant="destructive"
-            onClick={handleEndShift}
-            disabled={!actualCash || isSubmitting}
+            variant="outline"
+            onClick={handlePrintSummary}
+            disabled={!actualCash || isPrinting || isSubmitting}
+            className="gap-2"
           >
-            {isSubmitting ? "Cerrando..." : "Cerrar Jornada"}
+            <Printer className="h-4 w-4" />
+            {isPrinting ? "Imprimiendo..." : "Imprimir Resumen"}
           </Button>
+          <div className="flex gap-2 sm:gap-2">
+            <Button variant="ghost" onClick={handleClose} disabled={isSubmitting}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleEndShift}
+              disabled={!actualCash || isSubmitting}
+            >
+              {isSubmitting ? "Cerrando..." : "Cerrar Jornada"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

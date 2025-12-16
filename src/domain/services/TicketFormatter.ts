@@ -7,7 +7,7 @@
  * - 100% portable y testeable
  */
 
-import type { Order, OrderItem } from '@/lib/types';
+import type { Order, OrderItem, Shift } from '@/lib/types';
 
 export class TicketFormatter {
   /**
@@ -237,5 +237,116 @@ export class TicketFormatter {
     const width = 32;
     const padding = Math.max(0, Math.floor((width - text.length) / 2));
     return ' '.repeat(padding) + text;
+  }
+
+  /**
+   * Formatea un ticket de resumen de jornada para impresión
+   * ✅ Función pura - solo formateo de texto
+   *
+   * @param shift - La jornada con todos sus datos
+   * @param orders - Órdenes de la jornada para mostrar detalle (opcional)
+   * @param actualCashAmount - Efectivo contado manualmente (antes de cerrar) (opcional)
+   * @returns String formateado para impresión térmica
+   */
+  static formatShiftSummaryTicket(shift: Shift, orders?: Order[], actualCashAmount?: number): string {
+    let ticket = '';
+    ticket += '\n';
+    ticket += this.centerText('{{BRAND:FAST CHICKEN}}') + '\n';
+    ticket += '\n';
+    ticket += this.centerText('================================') + '\n';
+    ticket += this.centerText('RESUMEN DE JORNADA') + '\n';
+    ticket += this.centerText('================================') + '\n';
+    ticket += '\n';
+
+    // Información de la jornada
+    ticket += `Cajero: ${shift.employeeName}\n`;
+    ticket += `Inicio: ${this.formatDateTime(shift.startedAt)}\n`;
+    if (shift.endedAt) {
+      ticket += `Cierre: ${this.formatDateTime(shift.endedAt)}\n`;
+    }
+    ticket += '\n';
+    ticket += '--------------------------------\n';
+    ticket += 'RESUMEN DE VENTAS\n';
+    ticket += '--------------------------------\n';
+
+    // Totales
+    ticket += `Total ordenes:   ${shift.totalOrders}\n`;
+    ticket += `Ingresos:        $${shift.totalRevenue.toLocaleString('es-AR')}\n`;
+
+    // Si hay órdenes, mostrar detalle de canceladas
+    if (orders && orders.length > 0) {
+      const cancelledOrders = orders.filter(o => o.status === 'cancelled');
+      if (cancelledOrders.length > 0) {
+        const cancelledRevenue = cancelledOrders.reduce((sum, o) => sum + o.total, 0);
+        ticket += '\n';
+        ticket += `Ordenes canceladas: ${cancelledOrders.length}\n`;
+        ticket += `Total cancelado: $${cancelledRevenue.toLocaleString('es-AR')}\n`;
+      }
+    }
+
+    ticket += '\n';
+    ticket += '--------------------------------\n';
+    ticket += 'ARQUEO DE CAJA\n';
+    ticket += '--------------------------------\n';
+
+    const expectedCash = shift.initialCash + shift.totalRevenue;
+
+    ticket += `Fondo inicial:   $${shift.initialCash.toLocaleString('es-AR')}\n`;
+    ticket += `+ Ventas:        $${shift.totalRevenue.toLocaleString('es-AR')}\n`;
+    ticket += `= Esperado:      $${expectedCash.toLocaleString('es-AR')}\n`;
+
+    // ✅ Priorizar actualCashAmount (pasado como parámetro) sobre shift.actualCash
+    const cashCounted = actualCashAmount !== undefined ? actualCashAmount : shift.actualCash;
+
+    if (cashCounted !== undefined) {
+      const cashDiff = cashCounted - expectedCash;
+      ticket += `\n`;
+      ticket += `Efectivo real:   $${cashCounted.toLocaleString('es-AR')}\n`;
+
+      const diffSign = cashDiff >= 0 ? '+' : '';
+      const diffLabel = cashDiff === 0 ? 'CUADRADO' :
+                        cashDiff > 0 ? 'SOBRANTE' : 'FALTANTE';
+
+      ticket += `Diferencia:      ${diffSign}$${cashDiff.toLocaleString('es-AR')}\n`;
+      ticket += `\n`;
+      ticket += this.centerText(`*** ${diffLabel} ***`) + '\n';
+    }
+
+    ticket += '\n';
+    ticket += '================================\n';
+    ticket += this.centerText(shift.status === 'closed' ? 'Jornada cerrada exitosamente' : 'Resumen de jornada') + '\n';
+    ticket += '================================\n';
+    ticket += '\n';
+
+    return ticket;
+  }
+
+  /**
+   * Formatea fecha y hora juntas
+   * Helper para resumen de jornada
+   */
+  private static formatDateTime(date: Date | any): string {
+    try {
+      let dateObj: Date;
+      if (date instanceof Date) {
+        dateObj = date;
+      } else if (typeof date === 'object' && 'seconds' in date) {
+        dateObj = new Date((date as any).seconds * 1000);
+      } else if (typeof date === 'string') {
+        dateObj = new Date(date);
+      } else {
+        dateObj = new Date();
+      }
+
+      const dateStr = dateObj.toLocaleDateString('es-AR');
+      const timeStr = dateObj.toLocaleTimeString('es-AR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `${dateStr} ${timeStr}`;
+    } catch {
+      return new Date().toLocaleDateString('es-AR');
+    }
   }
 }
