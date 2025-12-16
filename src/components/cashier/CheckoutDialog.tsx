@@ -70,8 +70,28 @@ const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKi
           </div>
           {!isKitchen && item.appliedDiscount && <Badge variant="outline" className="text-[10px] text-accent-foreground bg-accent mb-1 py-0 px-1">{item.appliedDiscount.percentage}% OFF</Badge>}
 
-          {/* Solo mostrar detalles de customización para combos */}
-          {item.combo && (
+          {/* ✅ NUEVO: Mostrar TODOS los productos del combo desde comboProducts[] */}
+          {item.combo && item.comboProducts && item.comboProducts.length > 0 && (
+            <div className="pl-3 text-[11px] text-muted-foreground">
+                {item.comboProducts.map((product, idx) => {
+                  const quantityPrefix = product.quantity > 1 ? `${product.quantity}x ` : '';
+                  const prefix = idx === 0 ? '' : '+ ';
+                  const iceText = product.type === 'drink' && item.customizations.withIce !== undefined
+                    ? ` ${item.customizations.withIce ? '(con hielo)' : '(sin hielo)'}`
+                    : '';
+
+                  return (
+                    <div key={idx} className="truncate">
+                      {prefix}{quantityPrefix}{product.name}{iceText}
+                    </div>
+                  );
+                })}
+                {item.customizations.isSpicy && <div className="font-semibold text-destructive">CON PICANTE</div>}
+            </div>
+          )}
+
+          {/* ⚠️ FALLBACK: Sistema viejo para ordenes antiguas sin comboProducts[] */}
+          {item.combo && (!item.comboProducts || item.comboProducts.length === 0) && (
             <div className="pl-3 text-[11px] text-muted-foreground">
                 {item.customizations.product && <div className="truncate">{item.customizations.product.name}</div>}
                 {item.customizations.side && <div className="truncate">+ {item.customizations.side.name}</div>}

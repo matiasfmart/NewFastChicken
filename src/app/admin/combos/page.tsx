@@ -424,9 +424,11 @@ export default function CombosPage() {
                     <TableCell className="font-medium">{combo.name}</TableCell>
                     <TableCell>
                         <div className="flex flex-col">
-                            {combo.products?.map(p => (
-                                <span key={p.productId} className="text-xs text-muted-foreground">
+                            {combo.products?.map((p, idx) => (
+                                <span key={`${p.productId}-${idx}`} className="text-xs text-muted-foreground">
                                     {p.quantity}x {inventoryItems.find(i => i.id === p.productId)?.name || p.productId}
+                                    {p.isFixed === false && <span className="ml-1 text-[10px] text-blue-600">(elegible)</span>}
+                                    {p.isFixed === true && <span className="ml-1 text-[10px] text-green-600">(fijo)</span>}
                                 </span>
                             ))}
                         </div>

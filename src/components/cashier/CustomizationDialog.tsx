@@ -1,11 +1,11 @@
-
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import type { Combo, InventoryItem, OrderItem, ComboProduct } from '@/lib/types';
+import type { Combo, InventoryItem, OrderItem, InventoryCategory } from '@/lib/types';
 import { useOrder } from '@/context/OrderContext';
 import { useDiscounts } from '@/context/DiscountContext';
-import { DiscountService } from '@/domain/services/DiscountService';
+import { ComboService } from '@/domain/services/ComboService';
+import { BuildComboOrderItemUseCase } from '@/application/use-cases/BuildComboOrderItemUseCase';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -29,8 +29,8 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
   const [withIce, setWithIce] = useState(true);
   const [isSpicy, setIsSpicy] = useState(false);
 
-  // Estado para selecciones de combo (por tipo de inventario: product, drink, side)
-  const [selections, setSelections] = useState<Map<string, string>>(new Map());
+  // ✅ Estado para selecciones de combo (por tipo de inventario: product, drink, side)
+  const [selections, setSelections] = useState<Map<InventoryCategory, string>>(new Map());
 
   useEffect(() => {
     // Reset state when item changes
@@ -39,46 +39,19 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     setSelections(new Map());
   }, [item]);
 
-  // Estructura del combo agrupada por tipo de inventario
+  // ✅ Usar domain service para analizar estructura del combo
   const comboStructure = useMemo(() => {
-    if (!combo) return { fixedProducts: [], selectableByType: new Map<string, ComboProduct[]>() };
-
-    const fixedProducts = combo.products.filter(p => p.isFixed);
-    const selectableProducts = combo.products.filter(p => !p.isFixed);
-
-    // Agrupar productos elegibles por tipo de inventario
-    const selectableByType = new Map<string, ComboProduct[]>();
-    selectableProducts.forEach(p => {
-      const inventoryItem = allInventory.find(inv => inv.id === p.productId);
-      if (!inventoryItem) return;
-
-      const type = inventoryItem.type;
-      if (!selectableByType.has(type)) {
-        selectableByType.set(type, []);
-      }
-      selectableByType.get(type)!.push(p);
-    });
-
-    return { fixedProducts, selectableByType };
+    if (!combo) return { fixedProducts: [], selectableByType: new Map() };
+    return ComboService.analyzeComboStructure(combo, allInventory);
   }, [combo, allInventory]);
 
-  // Obtener inventario de productos fijos
+  // Obtener inventario de productos fijos (puede haber múltiples del mismo tipo)
   const fixedInventoryItems = useMemo(() => {
     if (!combo) return [];
     return comboStructure.fixedProducts
       .map(p => allInventory.find(inv => inv.id === p.productId))
       .filter(Boolean) as InventoryItem[];
   }, [comboStructure.fixedProducts, allInventory, combo]);
-
-  // Traducción de tipos a texto legible
-  const getTypeLabel = (type: string): string => {
-    switch (type) {
-      case 'product': return 'Producto Principal';
-      case 'drink': return 'Bebida';
-      case 'side': return 'Guarnición';
-      default: return type;
-    }
-  };
 
   const handleSubmit = () => {
     // Manejar productos individuales (sin combo)
@@ -115,63 +88,27 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
       return;
     }
 
-    // LÓGICA DE COMBOS CON ESTRUCTURA SIMPLIFICADA
-
-    // Validar que se haya seleccionado un producto por cada tipo elegible
-    const errors: string[] = [];
-    comboStructure.selectableByType.forEach((_, type) => {
-      if (!selections.has(type)) {
-        errors.push(`Debe seleccionar una opción para ${getTypeLabel(type)}`);
-      }
+    // ✅ NUEVO: Delegar construcción del OrderItem al use case
+    const result = BuildComboOrderItemUseCase.execute({
+      combo,
+      selections,
+      allInventory,
+      discounts,
+      withIce,
+      isSpicy
     });
 
-    if (errors.length > 0) {
+    if (!result.success) {
       toast({
         variant: 'destructive',
         title: "Selección incompleta",
-        description: errors.join('\n')
+        description: result.errors.join('\n')
       });
       return;
     }
 
-    // Obtener productos finales (fixed + selecciones)
-    const selectedProducts = Array.from(selections.values())
-      .map(productId => allInventory.find(p => p.id === productId))
-      .filter(Boolean) as InventoryItem[];
-
-    const finalProducts = [...fixedInventoryItems, ...selectedProducts];
-
-    // Construir customizations para compatibilidad con el sistema actual
-    const selectedProduct = finalProducts.find(p => p.type === 'product');
-    const selectedDrink = finalProducts.find(p => p.type === 'drink');
-    const selectedSide = finalProducts.find(p => p.type === 'side');
-
-    const price = combo.price;
-
-    // Aplicar descuentos
-    const activeDiscount = DiscountService.getActiveDiscountForCombo(combo, discounts);
-    const finalPrice = activeDiscount ? price * (1 - activeDiscount.percentage / 100) : price;
-
-    const customizations = {
-      drink: selectedDrink,
-      side: selectedSide,
-      product: selectedProduct,
-      withIce: withIce,
-      isSpicy: isSpicy,
-    };
-
-    const orderItem: OrderItem = {
-      id: `${combo.id}-${Array.from(selections.values()).join('-')}-${isSpicy}-${withIce}-${Date.now()}`,
-      combo: combo,
-      quantity: 1,
-      unitPrice: price,
-      finalUnitPrice: finalPrice,
-      appliedDiscount: activeDiscount ? { percentage: activeDiscount.percentage, rule: activeDiscount.rule } : undefined,
-      customizations
-    };
-
     // Verificar stock
-    const stockCheck = checkStockForNewItem(orderItem);
+    const stockCheck = checkStockForNewItem(result.orderItem!);
     if (!stockCheck.hasStock) {
       toast({
         variant: 'destructive',
@@ -181,7 +118,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
       return;
     }
 
-    addItemToOrder(orderItem);
+    addItemToOrder(result.orderItem!);
     onClose();
   };
 
@@ -208,8 +145,11 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     return null;
   }, [combo, getAvailableStock, allInventory]);
 
+  // ✅ Usar domain service para labels
+  const getTypeLabel = ComboService.getTypeLabel;
+
   // Renderizar grupo de selección (productos del mismo tipo)
-  const renderSelectableGroup = (type: string, products: ComboProduct[]) => {
+  const renderSelectableGroup = (type: InventoryCategory, products: any[]) => {
     const inventoryItems = products
       .map(p => allInventory.find(inv => inv.id === p.productId))
       .filter(Boolean) as InventoryItem[];
@@ -249,7 +189,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
     );
   };
 
-  // Renderizar productos fijos
+  // Renderizar productos fijos (puede haber múltiples del mismo tipo)
   const renderFixedProducts = () => {
     if (fixedInventoryItems.length === 0) return null;
 
@@ -257,13 +197,20 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
       <div className="space-y-2">
         <h3 className="font-semibold">Incluido en el combo</h3>
         <div className="space-y-1">
-          {fixedInventoryItems.map(item => (
-            <div key={item.id} className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <span>{item.name}</span>
-              {getStockStatus(item.id)}
-            </div>
-          ))}
+          {fixedInventoryItems.map((item, idx) => {
+            // ✅ Obtener quantity del ComboProduct original
+            const comboProduct = combo!.products.find(p => p.productId === item.id);
+            const quantity = comboProduct?.quantity ?? 1;
+            const quantityText = quantity > 1 ? `${quantity}x ` : '';
+
+            return (
+              <div key={`${item.id}-${idx}`} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <span>{quantityText}{item.name}</span>
+                {getStockStatus(item.id)}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -347,7 +294,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
             {/* Mostrar productos fijos */}
             {renderFixedProducts()}
 
-            {/* Mostrar grupos de selección por tipo */}
+            {/* ✅ Mostrar grupos de selección por tipo (genérico para todas las categorías) */}
             {Array.from(comboStructure.selectableByType.entries()).map(([type, products]) =>
               renderSelectableGroup(type, products)
             )}

@@ -89,6 +89,8 @@ export class TicketFormatter {
 
   /**
    * Formatea un item del pedido
+   * ✅ Soporta comboProducts[] para mostrar TODOS los productos
+   * ✅ Backward compatible con customizations para órdenes antiguas
    */
   private static formatItem(item: OrderItem, isKitchen: boolean): string {
     const itemName = item.combo
@@ -112,8 +114,23 @@ export class TicketFormatter {
 
     formatted += '\n';
 
-    // Detalles de customización para combos
-    if (item.combo) {
+    // ✅ NUEVO: Mostrar TODOS los productos del combo desde comboProducts[]
+    if (item.combo && item.comboProducts && item.comboProducts.length > 0) {
+      item.comboProducts.forEach(product => {
+        // Mostrar cantidad si es > 1 (ej: "2x Pollo Frito")
+        const quantityPrefix = product.quantity > 1 ? `${product.quantity}x ` : '';
+        formatted += `   • ${quantityPrefix}${product.name}`;
+
+        // Añadir opciones especiales solo a bebidas
+        if (product.type === 'drink' && item.customizations.withIce !== undefined) {
+          formatted += item.customizations.withIce ? ' (con hielo)' : ' (sin hielo)';
+        }
+
+        formatted += '\n';
+      });
+    }
+    // ⚠️ FALLBACK: Si no tiene comboProducts[] (orden antigua), usar customizations
+    else if (item.combo) {
       if (item.customizations.product) {
         formatted += `   • ${item.customizations.product.name}\n`;
       }

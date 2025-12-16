@@ -9,7 +9,17 @@
  * - Puede ser reutilizado en frontend, backend, tests, etc.
  */
 
-import type { Order, Shift } from '@/lib/types';
+import type { Order, OrderItem, Shift, DiscountRule } from '@/lib/types';
+import { DiscountService } from './DiscountService';
+
+/**
+ * Resultado del cálculo de totales de una orden
+ */
+export interface OrderCalculation {
+  subtotal: number;
+  discount: number;
+  total: number;
+}
 
 export class OrderService {
   /**
@@ -98,5 +108,38 @@ export class OrderService {
   static isValidCancellationReason(reason?: string): boolean {
     if (!reason) return true; // La razón es opcional
     return reason.trim().length > 0 && reason.length <= 500;
+  }
+
+  /**
+   * Calcula subtotal, descuento y total de una orden
+   * ✅ Función pura - solo cálculos matemáticos
+   *
+   * @param items - Items de la orden (ya con descuentos aplicados en finalUnitPrice)
+   * @param discounts - Reglas de descuento activas
+   * @returns Objeto con subtotal, discount y total calculados
+   */
+  static calculateOrderTotals(
+    items: OrderItem[],
+    discounts: DiscountRule[]
+  ): OrderCalculation {
+    // Calcular subtotal (precios originales sin descuento)
+    const subtotal = items.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+
+    // Calcular total con descuentos por item (ya aplicados en finalUnitPrice)
+    let total = items.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
+
+    // Aplicar descuento sobre el total de la orden si existe
+    const orderDiscount = DiscountService.getActiveOrderDiscount(discounts);
+    if (orderDiscount) {
+      total = total * (1 - orderDiscount.percentage / 100);
+    }
+
+    const discount = subtotal - total;
+
+    return {
+      subtotal,
+      discount,
+      total
+    };
   }
 }

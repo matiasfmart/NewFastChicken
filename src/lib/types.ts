@@ -73,6 +73,31 @@ export interface OrderItem {
     percentage: number;
     rule: DiscountRule;
   };
+
+  /**
+   * ✅ NUEVO: Array completo de TODOS los productos del combo (fijos + seleccionados)
+   * - Soporta múltiples productos por categoría
+   * - Cada producto incluye metadata para rendering correcto
+   * - Ejemplo: [
+   *     { productId: "pollo-1", name: "Pollo Frito", type: "product", quantity: 2, isFixed: true },
+   *     { productId: "papas", name: "Papas Fritas", type: "side", quantity: 1, isFixed: true },
+   *     { productId: "ensalada", name: "Ensalada", type: "side", quantity: 1, isFixed: false },
+   *     { productId: "coca", name: "Coca Cola", type: "drink", quantity: 1, isFixed: false }
+   *   ]
+   */
+  comboProducts?: Array<{
+    productId: string;
+    name: string;
+    type: InventoryCategory;
+    quantity: number; // Cantidad de este producto específico (desde ComboProduct.quantity)
+    isFixed: boolean; // true = incluido automáticamente, false = seleccionado por el usuario
+  }>;
+
+  /**
+   * ⚠️ DEPRECATED: Mantenido solo para backward compatibility
+   * - Nuevas órdenes deberían usar comboProducts[]
+   * - Órdenes antiguas seguirán usando este campo
+   */
   customizations: {
     drink?: InventoryItem;
     side?: InventoryItem;

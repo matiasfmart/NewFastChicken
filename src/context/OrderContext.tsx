@@ -5,10 +5,11 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import type { OrderItem, DeliveryType, Order, InventoryItem, Combo } from "@/lib/types";
 import type { CreateOrderDTO } from "@/dtos";
 import { useToast } from "@/hooks/use-toast";
-import { OrderAPI, ShiftAPI } from "@/api";
+import { OrderAPI } from "@/api";
 import { useShift } from "./ShiftContext";
 import { useDiscounts } from "./DiscountContext";
 import { DiscountService } from "@/domain/services/DiscountService";
+import { OrderService } from "@/domain/services/OrderService";
 
 interface OrderContextType {
   orderItems: OrderItem[];
@@ -270,28 +271,16 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
   const finalizeOrder = async (): Promise<Order | null> => {
     if (orderItems.length === 0) return null;
 
-    // ✅ Los descuentos cross-promotion YA están aplicados por el useEffect
-    // Solo necesitamos calcular subtotal, total y aplicar descuento sobre orden
-
-    // Calcular subtotal (precios originales sin descuento)
-    const subtotal = orderItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
-
-    // Calcular total con descuentos por item (simples + cross-promotion ya aplicados)
-    let total = orderItems.reduce((acc, item) => acc + item.finalUnitPrice * item.quantity, 0);
-
-    // ✅ Aplicar descuento sobre el total de la orden si existe
-    const orderDiscount = DiscountService.getActiveOrderDiscount(discounts);
-    if (orderDiscount) {
-      total = total * (1 - orderDiscount.percentage / 100);
-    }
+    // ✅ Delegar cálculo de totales al domain service
+    const orderCalculation = OrderService.calculateOrderTotals(orderItems, discounts);
 
     const newOrderData: CreateOrderDTO = {
         shiftId: currentShift?.id,
         items: orderItems, // ✅ Items ya tienen todos los descuentos aplicados
         deliveryType,
-        subtotal,
-        discount: subtotal - total,
-        total,
+        subtotal: orderCalculation.subtotal,
+        discount: orderCalculation.discount,
+        total: orderCalculation.total,
         status: 'completed',
         createdAt: new Date(),
     };
