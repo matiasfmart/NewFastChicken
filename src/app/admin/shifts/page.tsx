@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ShiftAPI } from '@/api';
+// ✅ PRODUCCIÓN: Usar cliente HTTP en lugar de API interna
+import { ShiftsClient } from '@/lib/api-client';
 import type { Shift } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +40,7 @@ export default function ShiftsHistoryPage() {
   const fetchShifts = async () => {
     setIsLoading(true);
     try {
-      const data = await ShiftAPI.getByDateRange(dateRange.from, dateRange.to);
+      const data = await ShiftsClient.getByDateRange(dateRange.from, dateRange.to);
       // Ordenar por fecha más reciente primero
       const sorted = data.sort((a, b) => {
         const dateA = a.startedAt instanceof Date ? a.startedAt : new Date(a.startedAt as any);

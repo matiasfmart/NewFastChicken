@@ -18,7 +18,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { ComboAPI, InventoryAPI } from '@/api';
+// ✅ PRODUCCIÓN: Usar cliente HTTP en lugar de API interna
+// En standalone build, los Client Components NO pueden importar APIs internas
+import { CombosClient, InventoryClient } from '@/lib/api-client';
 
 function ComboForm({ combo, onSave, onCancel, inventoryItems }: { combo: Partial<Combo> | null, onSave: (combo: Partial<Combo>) => Promise<void>, onCancel: () => void, inventoryItems: InventoryItem[] }) {
   const [formData, setFormData] = useState<Partial<Combo> | null>(null);
@@ -303,10 +305,10 @@ export default function CombosPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-        // ✅ Usando APIs internas - sin Firebase directo
+        // ✅ Usando HTTP client - funciona en dev y producción standalone
         const [comboData, inventoryData] = await Promise.all([
-            ComboAPI.getAll(),
-            InventoryAPI.getAll()
+            CombosClient.getAll(),
+            InventoryClient.getAll()
         ]);
         setCombos(comboData);
         setInventoryItems(inventoryData);
@@ -343,10 +345,10 @@ export default function CombosPage() {
     try {
       if (id) {
         // ✅ Actualizar combo existente
-        await ComboAPI.update(id, data);
+        await CombosClient.update(id, data);
       } else {
         // ✅ Crear nuevo combo
-        await ComboAPI.create(data as Omit<Combo, 'id'>);
+        await CombosClient.create(data as Omit<Combo, 'id'>);
       }
 
       setFormOpen(false);
@@ -365,8 +367,8 @@ export default function CombosPage() {
   const handleDelete = async () => {
     if (deletingComboId) {
       try {
-        // ✅ Eliminar combo usando API interna
-        await ComboAPI.delete(deletingComboId);
+        // ✅ Eliminar combo usando HTTP client
+        await CombosClient.delete(deletingComboId);
         setDeleteAlertOpen(false);
         setDeletingComboId(null);
         await fetchData(); // Refetch data

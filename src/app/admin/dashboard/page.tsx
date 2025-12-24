@@ -6,7 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Order, InventoryItem, Combo } from '@/lib/types';
 import { DashboardCharts } from '@/components/admin/DashboardCharts';
 import { DateRangeSelector } from '@/components/admin/DateRangeSelector';
-import { OrderAPI, ComboAPI, InventoryAPI } from '@/api';
+// ✅ PRODUCCIÓN: Usar cliente HTTP en lugar de API interna
+import { OrdersClient, CombosClient, InventoryClient } from '@/lib/api-client';
 import { startOfDay, endOfDay } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 
@@ -37,9 +38,9 @@ export default function AdminDashboardPage() {
       setIsLoading(true);
       try {
         const [ordersData, combosData, inventoryData] = await Promise.all([
-          OrderAPI.getAll(),
-          ComboAPI.getAll(),
-          InventoryAPI.getAll()
+          OrdersClient.getAll(),
+          CombosClient.getAll(),
+          InventoryClient.getAll()
         ]);
 
         // Filtrar órdenes por rango

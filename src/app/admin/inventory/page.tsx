@@ -6,7 +6,8 @@ import { InventoryTabs } from "@/components/admin/InventoryTabs";
 import type { InventoryItem } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { InventoryAPI } from '@/api';
+// ✅ PRODUCCIÓN: Usar cliente HTTP en lugar de API interna
+import { InventoryClient } from '@/lib/api-client';
 
 export default function InventoryPage() {
   const [products, setProducts] = useState<InventoryItem[]>([]);
@@ -22,8 +23,8 @@ export default function InventoryPage() {
       setIsLoading(true);
     }
     try {
-        // ✅ Usando API interna - sin Firebase directo
-        const items = await InventoryAPI.getAll();
+        // ✅ Usando HTTP client - funciona en dev y producción standalone
+        const items = await InventoryClient.getAll();
         setProducts(items.filter(item => item.type === 'product'));
         setDrinks(items.filter(item => item.type === 'drink'));
         setSides(items.filter(item => item.type === 'side'));
@@ -47,10 +48,10 @@ export default function InventoryPage() {
     try {
       if (id) {
         // ✅ Actualizar item existente
-        await InventoryAPI.update(id, data as Omit<InventoryItem, 'id'>);
+        await InventoryClient.update(id, data as Omit<InventoryItem, 'id'>);
       } else {
         // ✅ Crear nuevo item
-        await InventoryAPI.create(data as Omit<InventoryItem, 'id'>);
+        await InventoryClient.create(data as Omit<InventoryItem, 'id'>);
       }
       await fetchData(false); // Refetch data after saving WITHOUT showing loading
     } catch (error) {
@@ -67,8 +68,8 @@ export default function InventoryPage() {
   const handleDelete = async () => {
     if (itemToDelete) {
       try {
-        // ✅ Eliminar item usando API interna
-        await InventoryAPI.delete(itemToDelete.id);
+        // ✅ Eliminar item usando HTTP client
+        await InventoryClient.delete(itemToDelete.id);
         setDeleteAlertOpen(false);
         setItemToDelete(null);
         await fetchData(); // Refetch data after deleting

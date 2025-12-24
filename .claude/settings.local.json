@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npm run build:*)",
+      "Bash(cat:*)",
+      "Bash(./deploy-windows.sh:*)",
+      "Bash(bash:*)",
+      "Bash(find:*)",
+      "Bash(kill:*)"
+    ]
+  }
+}

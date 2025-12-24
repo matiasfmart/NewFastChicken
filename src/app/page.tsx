@@ -15,6 +15,11 @@ import { initializeMongoDB } from "@/lib/mongodb-init";
  * Server Component → APIs → MongoDB Repositories → MongoDB
  */
 
+// CRÍTICO: Forzar renderizado dinámico para que NO use el HTML pre-generado durante build
+// Durante el build, MongoDB usa un mock que retorna datos vacíos
+// En runtime, necesitamos conectar a la DB real y obtener datos frescos
+export const dynamic = 'force-dynamic';
+
 export default async function Home() {
   // ✅ Inicializar MongoDB antes de cualquier llamada a APIs
   await initializeMongoDB();

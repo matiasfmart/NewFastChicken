@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { EmployeeAPI } from '@/api';
+// ✅ PRODUCCIÓN: Usar cliente HTTP en lugar de API interna
+import { EmployeesClient } from '@/lib/api-client';
 import type { Employee } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +32,7 @@ export default function EmployeesPage() {
   const fetchEmployees = async () => {
     setIsLoading(true);
     try {
-      const data = await EmployeeAPI.getAll();
+      const data = await EmployeesClient.getAll();
       setEmployees(data);
     } catch (error) {
       console.error("Failed to fetch employees:", error);
@@ -73,9 +74,9 @@ export default function EmployeesPage() {
     try {
       if (isEditing && formData.id) {
         const { id, ...updates } = formData;
-        await EmployeeAPI.update(id, updates);
+        await EmployeesClient.update(id, updates);
       } else {
-        await EmployeeAPI.create({
+        await EmployeesClient.create({
           name: formData.name!,
           role: formData.role as 'cashier' | 'admin',
           active: formData.active ?? true,
@@ -97,7 +98,7 @@ export default function EmployeesPage() {
   const handleDelete = async () => {
     if (employeeToDelete) {
       try {
-        await EmployeeAPI.delete(employeeToDelete);
+        await EmployeesClient.delete(employeeToDelete);
         setDeleteAlertOpen(false);
         setEmployeeToDelete(null);
         await fetchEmployees();
@@ -109,7 +110,7 @@ export default function EmployeesPage() {
 
   const toggleActiveStatus = async (employee: Employee) => {
     try {
-      await EmployeeAPI.update(employee.id, { active: !employee.active });
+      await EmployeesClient.update(employee.id, { active: !employee.active });
       await fetchEmployees();
     } catch (error) {
       console.error("Failed to update employee status:", error);
