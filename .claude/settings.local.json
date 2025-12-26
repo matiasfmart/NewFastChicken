@@ -9,7 +9,12 @@
       "Bash(./deploy-windows.sh:*)",
       "Bash(bash:*)",
       "Bash(find:*)",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(tree:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)"
     ]
   }
 }

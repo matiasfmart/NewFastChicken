@@ -58,11 +58,23 @@ Guías técnicas para desarrolladores, prompts y patrones de implementación.
 
 ---
 
+### 🚀 06-deployment/
+Guías de deployment y configuración de entornos de producción.
+
+- **[WINDOWS_DEPLOYMENT.md](06-deployment/WINDOWS_DEPLOYMENT.md)** - ✅ Guía completa de deployment en Windows (standalone build) - **SOLUCIÓN FINAL**
+- **[DOCKER_SETUP.md](06-deployment/DOCKER_SETUP.md)** - Configuración de Docker para desarrollo y producción
+- **[DOCKER_IMAGE_MANAGEMENT.md](06-deployment/DOCKER_IMAGE_MANAGEMENT.md)** - Gestión de imágenes Docker y troubleshooting
+
+**Empieza aquí si:** Necesitas deployar la aplicación en producción o configurar Docker.
+
+---
+
 ### 📦 archive/
 Documentos históricos y diagnósticos de bugs resueltos.
 
 Contiene:
 - Diagnósticos de bugs de descuentos (resueltos)
+- Versiones antiguas de documentación de deployment
 - Documentación de fixes antiguos
 - Archivos de configuración legacy
 
@@ -90,31 +102,29 @@ Contiene:
 
 ---
 
-## Archivos Deprecados Identificados
-
-### ⚠️ Para Eliminar:
-
-1. **`src/domain/services/ComboValidationService.ts.backup`**
-   - Reemplazado por `ComboService.ts`
-   - Solo se menciona en docs antiguos
-   - Eliminar con: `rm src/domain/services/ComboValidationService.ts.backup`
-
-2. **`src/domain/services/ComboMigrationHelper.ts`**
-   - Helper de migración de modelo antiguo a nuevo
-   - No se importa en ningún archivo de código
-   - Solo se menciona en docs
-   - Considerar eliminar si la migración ya se completó
-
----
-
 ## Mantenimiento de esta Documentación
 
+### Guías de Organización:
 - **Nuevos docs de features:** Agregar a `03-features/`
 - **Nuevos casos de uso:** Documentar en `02-architecture/CASOS_USO_NEGOCIO.md`
 - **Cambios arquitectónicos:** Actualizar `02-architecture/ARCHITECTURE.md`
+- **Guías de deployment:** Agregar a `06-deployment/`
 - **Bugs resueltos:** Mover diagnósticos a `archive/`
 - **Manuales de usuario:** Actualizar en `04-user-manuals/`
 
+### ✅ Limpieza Reciente (2025-12-24):
+- ✅ Eliminados: `ComboValidationService.ts.backup`, `.modified`
+- ✅ **TODOS los archivos .md movidos de root a `docs/`** (100% de documentación en docs/)
+- ✅ Creada carpeta `06-deployment/` con documentación consolidada
+- ✅ Archivos deprecados movidos a `archive/`
+- ✅ Documentación de Windows deployment consolidada en versión final
+- 📄 Ver resumen completo: [REORGANIZACION_2025-12-24.md](REORGANIZACION_2025-12-24.md)
+
+### 📋 Estado Actual:
+- **Root del proyecto:** ✅ **0 archivos .md** (solo código y configuración)
+- **docs/:** ✅ Toda la documentación organizada en 6 categorías + 1 resumen
+- **archive/:** ✅ Documentación histórica preservada para referencia
+
 ---
 
-Última actualización: 2025-12-20
+Última actualización: 2025-12-24
