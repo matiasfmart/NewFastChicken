@@ -65,9 +65,9 @@ export function CashierHeader() {
                 <Clock className="h-4 w-4" />
                 <span>{elapsedTime}</span>
               </div>
-              <div className="text-muted-foreground">
+              {/* <div className="text-muted-foreground">
                 • ${currentShift.totalRevenue.toLocaleString('es-AR')}
-              </div>
+              </div> */}
             </div>
             <Button
               variant="outline"
