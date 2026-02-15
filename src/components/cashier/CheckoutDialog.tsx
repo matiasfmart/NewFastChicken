@@ -4,7 +4,6 @@
 import { useState, memo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import type { Order, OrderItem } from "@/lib/types";
 import { FastChickenLogo } from "../icons/FastChickenLogo";
@@ -20,13 +19,14 @@ interface CheckoutDialogProps {
 }
 
 // ✅ Memoizar TicketLayout para evitar re-renders innecesarios
-const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKitchen: boolean; className?: string }) => {
+// ✅ Ticket unificado - mismo formato para cliente y cocina
+const TicketLayout = memo(({ order, className }: { order: Order; className?: string }) => {
 
   const deliveryText = {
       local: 'Para comer acá',
       takeaway: 'Para llevar',
       delivery: 'Delivery'
-  }
+  };
 
   // Función helper para convertir createdAt a Date de forma segura
   const getOrderDate = (): Date => {
@@ -43,7 +43,7 @@ const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKi
     }
     // Fallback
     return new Date();
-  }
+  };
 
   const renderItem = (item: OrderItem) => {
     // Determinar el nombre del ítem
@@ -55,20 +55,18 @@ const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKi
       <div key={item.id} className="text-xs">
           <div className="flex justify-between gap-2">
               <span className="font-bold truncate flex-1">{item.quantity}x {itemName}</span>
-              {!isKitchen && (
-                   <div className="flex flex-col items-end shrink-0">
-                      {item.appliedDiscount ? (
-                          <>
-                             <span className="text-[10px] line-through text-muted-foreground">${item.unitPrice.toLocaleString('es-AR')}</span>
-                             <span className="font-bold text-xs">${item.finalUnitPrice.toLocaleString('es-AR')} c/u</span>
-                          </>
-                      ) : (
-                          <span className="font-bold text-xs">${item.unitPrice.toLocaleString('es-AR')} c/u</span>
-                      )}
-                   </div>
-              )}
+              <div className="flex flex-col items-end shrink-0">
+                {item.appliedDiscount ? (
+                    <>
+                      <span className="text-[10px] line-through text-muted-foreground">${item.unitPrice.toLocaleString('es-AR')}</span>
+                      <span className="font-bold text-xs">${item.finalUnitPrice.toLocaleString('es-AR')} c/u</span>
+                    </>
+                ) : (
+                    <span className="font-bold text-xs">${item.unitPrice.toLocaleString('es-AR')} c/u</span>
+                )}
+              </div>
           </div>
-          {!isKitchen && item.appliedDiscount && <Badge variant="outline" className="text-[10px] text-accent-foreground bg-accent mb-1 py-0 px-1">{item.appliedDiscount.percentage}% OFF</Badge>}
+          {item.appliedDiscount && <Badge variant="outline" className="text-[10px] text-accent-foreground bg-accent mb-1 py-0 px-1">{item.appliedDiscount.percentage}% OFF</Badge>}
 
           {/* ✅ NUEVO: Mostrar TODOS los productos del combo desde comboProducts[] */}
           {item.combo && item.comboProducts && item.comboProducts.length > 0 && (
@@ -111,7 +109,7 @@ const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKi
           )}
       </div>
     );
-  }
+  };
 
   // ✅ Usar el número de orden secuencial formateado del domain layer
   const orderNumber = TicketFormatter.formatOrderNumber(order.orderNumber);
@@ -119,34 +117,32 @@ const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKi
   return (
     <div className={`ticket-layout w-full bg-white text-black p-4 font-mono text-xs ${className || ''}`}>
       <div className="text-center space-y-1">
-        {!isKitchen && <FastChickenLogo className="justify-center scale-75" />}
-        <h2 className="text-base font-bold">{isKitchen ? 'COCINA' : `ORDEN #${orderNumber}`}</h2>
+        <FastChickenLogo className="justify-center scale-75" />
+        <h2 className="text-base font-bold">ORDEN #{orderNumber}</h2>
       </div>
       <Separator className="separator my-2 border-dashed border-black" />
       <div className="space-y-2">
         {order.items.map(renderItem)}
       </div>
       <Separator className="separator my-1 border-dashed border-black" />
-      {!isKitchen && (
-          <div className="space-y-0.5 text-xs">
-            {order.discount > 0 && (
-                <>
-                    <div className="flex justify-between">
-                        <span>Subtotal:</span>
-                        <span>${order.subtotal.toLocaleString('es-AR')}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>Descuento:</span>
-                        <span>-${order.discount.toLocaleString('es-AR')}</span>
-                    </div>
-                </>
-            )}
-            <div className="flex justify-between font-bold text-sm">
-                <span>TOTAL:</span>
-                <span>${order.total.toLocaleString('es-AR')}</span>
-            </div>
-          </div>
-      )}
+      <div className="space-y-0.5 text-xs">
+        {order.discount > 0 && (
+            <>
+                <div className="flex justify-between">
+                    <span>Subtotal:</span>
+                    <span>${order.subtotal.toLocaleString('es-AR')}</span>
+                </div>
+                <div className="flex justify-between">
+                    <span>Descuento:</span>
+                    <span>-${order.discount.toLocaleString('es-AR')}</span>
+                </div>
+            </>
+        )}
+        <div className="flex justify-between font-bold text-sm">
+            <span>TOTAL:</span>
+            <span>${order.total.toLocaleString('es-AR')}</span>
+        </div>
+      </div>
       <Separator className="separator my-1 border-dashed border-black" />
       <div className="flex justify-between items-center text-[11px]">
         <div className="flex items-center gap-1.5">
@@ -162,31 +158,10 @@ const TicketLayout = memo(({ order, isKitchen, className }: { order: Order; isKi
   );
 });
 
+TicketLayout.displayName = 'TicketLayout';
+
 export function CheckoutDialog({ order, onClose }: CheckoutDialogProps) {
   const [isPrinting, setIsPrinting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'customer' | 'kitchen'>('customer');
-
-  const handlePrint = async () => {
-    if (!browserPrinter.isAvailable()) {
-      alert('La impresión no está disponible en este navegador');
-      return;
-    }
-
-    setIsPrinting(true);
-    try {
-      // Imprimir según la pestaña activa
-      const content = activeTab === 'customer'
-        ? TicketFormatter.formatCustomerTicket(order)
-        : TicketFormatter.formatKitchenTicket(order);
-
-      await browserPrinter.print(content);
-    } catch (error) {
-      console.error('Error printing:', error);
-      alert('Error al imprimir. Por favor, intente nuevamente.');
-    } finally {
-      setIsPrinting(false);
-    }
-  };
 
   const handlePrintBoth = async () => {
     if (!browserPrinter.isAvailable()) {
@@ -196,16 +171,15 @@ export function CheckoutDialog({ order, onClose }: CheckoutDialogProps) {
 
     setIsPrinting(true);
     try {
-      // Imprimir ticket de cliente
-      const customerContent = TicketFormatter.formatCustomerTicket(order);
-      await browserPrinter.print(customerContent);
+      // ✅ Imprimir primer ticket (para cliente)
+      const ticketContent = TicketFormatter.formatOrderTicket(order);
+      await browserPrinter.print(ticketContent);
 
       // Pequeña pausa entre impresiones
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Imprimir ticket de cocina
-      const kitchenContent = TicketFormatter.formatKitchenTicket(order);
-      await browserPrinter.print(kitchenContent);
+      // ✅ Imprimir segundo ticket (para cocina) - mismo contenido
+      await browserPrinter.print(ticketContent);
     } catch (error) {
       console.error('Error printing:', error);
       alert('Error al imprimir. Por favor, intente nuevamente.');
@@ -224,52 +198,24 @@ export function CheckoutDialog({ order, onClose }: CheckoutDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6">
-          <Tabs defaultValue="customer" value={activeTab} onValueChange={(v) => setActiveTab(v as 'customer' | 'kitchen')}>
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="customer">Ticket Cliente</TabsTrigger>
-              <TabsTrigger value="kitchen">Ticket Cocina</TabsTrigger>
-            </TabsList>
-            {/* ✅ Solo renderizar el tab activo para mejorar performance */}
-            <TabsContent value="customer" className="mt-0">
-              {activeTab === 'customer' && (
-                <div className="bg-gray-200 p-2 rounded-md">
-                  <TicketLayout order={order} isKitchen={false} className="print-content" />
-                </div>
-              )}
-            </TabsContent>
-            <TabsContent value="kitchen" className="mt-0">
-              {activeTab === 'kitchen' && (
-                <div className="bg-gray-200 p-2 rounded-md">
-                  <TicketLayout order={order} isKitchen={true} className="print-content" />
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          <div className="bg-gray-200 p-2 rounded-md">
+            <TicketLayout order={order} className="print-content" />
+          </div>
         </div>
 
         <div className="shrink-0 px-6 py-4 border-t">
           <div className="grid grid-cols-3 gap-2">
             <Button
-              variant="outline"
-              onClick={handlePrint}
-              disabled={isPrinting}
-              size="sm"
-            >
-              <Printer className="h-3.5 w-3.5 mr-1.5" />
-              <span className="truncate text-xs">{activeTab === 'customer' ? 'Cliente' : 'Cocina'}</span>
-            </Button>
-            <Button
-              variant="outline"
+              // variant="outline" // se quito la opcion para que figure como la accion principal
+              // se quitaron los otros botones ya que el usuario pidio que solo quede la opcion de imprimir ambos tickets juntos
               onClick={handlePrintBoth}
               disabled={isPrinting}
               size="sm"
+              className="col-start-3"
             >
               <Printer className="h-3.5 w-3.5 mr-1.5" />
-              <span className="truncate text-xs">Ambos</span>
-            </Button>
-            <Button onClick={onClose} size="sm">
-              <span className="truncate text-xs">Nuevo Pedido</span>
+              <span className="truncate text-xs">Imprimir</span>
             </Button>
           </div>
         </div>
@@ -277,5 +223,3 @@ export function CheckoutDialog({ order, onClose }: CheckoutDialogProps) {
     </Dialog>
   );
 }
-
-    
