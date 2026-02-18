@@ -29,8 +29,21 @@ export class TicketFormatter {
     ticket += `${date} - ${time}\n`;
     ticket += '--------------------------------\n';
 
-    order.items.forEach(item => {
+    // ✅ Agrupar items y agregar separadores entre diferentes combos
+    order.items.forEach((item, index) => {
       ticket += this.formatItem(item);
+      
+      // Agregar línea separadora entre diferentes combos
+      // (no agregar después del último item)
+      if (index < order.items.length - 1) {
+        const currentComboId = item.combo?.id || item.id;
+        const nextComboId = order.items[index + 1].combo?.id || order.items[index + 1].id;
+        
+        // Si el siguiente item es un combo diferente, agregar separador
+        if (currentComboId !== nextComboId) {
+          ticket += '   ---------------------------\n';
+        }
+      }
     });
 
     ticket += '--------------------------------\n';
