@@ -18,6 +18,7 @@ import { DiscountService } from '@/domain/services/DiscountService';
 export function OrderPanel() {
   const { orderItems, updateItemQuantity, removeItemFromOrder, clearOrder, deliveryType, setDeliveryType, finalizeOrder, currentOrderNumber, checkStockForNewItem } = useOrder();
   const [finalizedOrder, setFinalizedOrder] = React.useState<Order | null>(null);
+  const [isFinalizingOrder, setIsFinalizingOrder] = React.useState(false);
   const { toast } = useToast();
   const { discounts } = useDiscounts();
 
@@ -33,9 +34,14 @@ export function OrderPanel() {
   const discount = subtotal - total;
 
   const handleFinalize = async () => {
-    const order = await finalizeOrder();
-    if(order) {
-        setFinalizedOrder(order);
+    setIsFinalizingOrder(true);
+    try {
+      const order = await finalizeOrder();
+      if(order) {
+          setFinalizedOrder(order);
+      }
+    } finally {
+      setIsFinalizingOrder(false);
     }
   }
 
@@ -166,13 +172,13 @@ export function OrderPanel() {
                 </div>
             </div>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" onClick={clearOrder} disabled={orderItems.length === 0}>Limpiar</Button>
+            <Button variant="outline" onClick={clearOrder} disabled={orderItems.length === 0 || isFinalizingOrder}>Limpiar</Button>
             <Button
               className="bg-accent text-accent-foreground hover:bg-accent/90"
               onClick={handleFinalize}
-              disabled={orderItems.length === 0}
+              disabled={orderItems.length === 0 || isFinalizingOrder}
             >
-              Terminar Pedido
+              {isFinalizingOrder ? 'Procesando...' : 'Terminar Pedido'}
             </Button>
           </div>
         </div>
