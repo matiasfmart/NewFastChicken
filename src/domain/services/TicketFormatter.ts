@@ -92,8 +92,10 @@ export class TicketFormatter {
          'Producto');
 
     let formatted = '';
-    // ✅ Destacar nombre del combo en MAYÚSCULAS
-    const displayName = item.combo ? itemName.toUpperCase() : itemName;
+    // ✅ Destacar nombre del combo con marcador especial para negrita
+    const displayName = item.combo 
+      ? `{{COMBO:${itemName.toUpperCase()}}}` 
+      : itemName;
     formatted += `${item.quantity}x ${displayName}`;
 
     // ✅ Siempre mostrar precios (ticket unificado)
@@ -114,7 +116,7 @@ export class TicketFormatter {
 
         // Añadir opciones especiales solo a bebidas
         if (product.type === 'drink' && item.customizations.withIce !== undefined) {
-          formatted += item.customizations.withIce ? ' +hielo' : ' -hielo';
+          formatted += item.customizations.withIce ? ' c/hielo' : ' s/hielo';
         }
 
         formatted += '\n';
