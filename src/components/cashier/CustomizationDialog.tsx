@@ -26,7 +26,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
   const combo = isCombo ? (item as Combo) : null;
 
   // Estado para productos individuales
-  const [withIce, setWithIce] = useState(true);
+  const [withIce, setWithIce] = useState(false);
   const [isSpicy, setIsSpicy] = useState(false);
 
   // ✅ Estado para selecciones de combo (por tipo de inventario: product, drink, side)
@@ -34,7 +34,7 @@ export function CustomizationDialog({ isOpen, onClose, item }: { isOpen: boolean
 
   useEffect(() => {
     // Reset state when item changes
-    setWithIce(true);
+    setWithIce(false);
     setIsSpicy(false);
     setSelections(new Map());
   }, [item]);

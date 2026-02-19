@@ -11,88 +11,79 @@ import type { Order, OrderItem, Shift } from '@/lib/types';
 
 export class TicketFormatter {
   /**
-   * Formatea un ticket de cliente para impresión
+   * Formatea un ticket de pedido para impresión
+   * ✅ Ticket unificado - mismo formato para cliente y cocina
    */
-  static formatCustomerTicket(order: Order): string {
+  static formatOrderTicket(order: Order): string {
     const orderNumber = this.formatOrderNumber(order.orderNumber);
     const date = this.formatDate(order.createdAt);
     const time = this.formatTime(order.createdAt);
     const deliveryText = this.getDeliveryText(order.deliveryType);
 
     let ticket = '';
-    ticket += '\n';
     ticket += this.centerText('{{BRAND:FAST CHICKEN}}') + '\n';
-    ticket += '\n';
     ticket += this.centerText('================================') + '\n';
-    ticket += this.centerText(`ORDEN #${orderNumber}`) + '\n';
+    ticket += this.centerText(`### ORDEN #${orderNumber} ###`) + '\n';
     ticket += this.centerText('================================') + '\n';
-    ticket += '\n';
-    ticket += `Fecha: ${date}\n`;
-    ticket += `Hora: ${time}\n`;
-    ticket += `Tipo: ${deliveryText}\n`;
-    ticket += '\n';
-    ticket += '--------------------------------\n';
-    ticket += 'ITEMS\n';
+    ticket += this.centerText(`*** ${deliveryText.toUpperCase()} ***`) + '\n';
+    ticket += `${date} - ${time}\n`;
     ticket += '--------------------------------\n';
 
-    order.items.forEach(item => {
-      ticket += this.formatItem(item, false);
+    // ✅ Agrupar items y agregar separadores entre diferentes combos
+    order.items.forEach((item, index) => {
+      ticket += this.formatItem(item);
+      
+      // Agregar línea separadora entre diferentes combos
+      // (no agregar después del último item)
+      if (index < order.items.length - 1) {
+        const currentComboId = item.combo?.id || item.id;
+        const nextComboId = order.items[index + 1].combo?.id || order.items[index + 1].id;
+        
+        // Si el siguiente item es un combo diferente, agregar separador
+        if (currentComboId !== nextComboId) {
+          ticket += '   ---------------------------\n';
+        }
+      }
     });
 
     ticket += '--------------------------------\n';
 
     if (order.discount > 0) {
-      ticket += `Subtotal:        $${order.subtotal.toLocaleString('es-AR')}\n`;
-      ticket += `Descuento:      -$${order.discount.toLocaleString('es-AR')}\n`;
+      ticket += `Subtotal:  $${order.subtotal.toLocaleString('es-AR')}\n`;
+      ticket += `Descuento: -$${order.discount.toLocaleString('es-AR')}\n`;
       ticket += '--------------------------------\n';
     }
 
-    ticket += `TOTAL:           $${order.total.toLocaleString('es-AR')}\n`;
+    ticket += `TOTAL: $${order.total.toLocaleString('es-AR')}\n`;
     ticket += '================================\n';
-    ticket += '\n';
     ticket += this.centerText('¡GRACIAS POR SU COMPRA!') + '\n';
-    ticket += '\n';
 
     return ticket;
   }
 
   /**
-   * Formatea un ticket de cocina para impresión
+   * @deprecated Usar formatOrderTicket() - Ambos tickets ahora son idénticos
+   * Mantenido para backward compatibility
+   */
+  static formatCustomerTicket(order: Order): string {
+    return this.formatOrderTicket(order);
+  }
+
+  /**
+   * @deprecated Usar formatOrderTicket() - Ambos tickets ahora son idénticos
+   * Mantenido para backward compatibility
    */
   static formatKitchenTicket(order: Order): string {
-    const orderNumber = this.formatOrderNumber(order.orderNumber);
-    const time = this.formatTime(order.createdAt);
-    const deliveryText = this.getDeliveryText(order.deliveryType);
-
-    let ticket = '';
-    ticket += this.centerText('***** COCINA *****') + '\n';
-    ticket += this.centerText('================================') + '\n';
-    ticket += this.centerText(`ORDEN #${orderNumber}`) + '\n';
-    ticket += this.centerText('================================') + '\n';
-    ticket += '\n';
-    ticket += `Hora: ${time}\n`;
-    ticket += `Tipo: ${deliveryText}\n`;
-    ticket += '\n';
-    ticket += '--------------------------------\n';
-    ticket += 'PREPARAR:\n';
-    ticket += '--------------------------------\n';
-
-    order.items.forEach(item => {
-      ticket += this.formatItem(item, true);
-    });
-
-    ticket += '================================\n';
-    ticket += '\n';
-
-    return ticket;
+    return this.formatOrderTicket(order);
   }
 
   /**
    * Formatea un item del pedido
    * ✅ Soporta comboProducts[] para mostrar TODOS los productos
    * ✅ Backward compatible con customizations para órdenes antiguas
+   * ✅ Siempre muestra precios (formato unificado)
    */
-  private static formatItem(item: OrderItem, isKitchen: boolean): string {
+  private static formatItem(item: OrderItem): string {
     const itemName = item.combo
       ? item.combo.name
       : (item.customizations.product?.name ||
@@ -101,15 +92,17 @@ export class TicketFormatter {
          'Producto');
 
     let formatted = '';
-    formatted += `${item.quantity}x ${itemName}`;
+    // ✅ Destacar nombre del combo con marcador especial para negrita
+    const displayName = item.combo 
+      ? `{{COMBO:${itemName.toUpperCase()}}}` 
+      : itemName;
+    formatted += `${item.quantity}x ${displayName}`;
 
-    if (!isKitchen) {
-      if (item.appliedDiscount) {
-        formatted += `\n   $${item.unitPrice.toLocaleString('es-AR')} -> $${item.finalUnitPrice.toLocaleString('es-AR')} c/u`;
-        formatted += ` (${item.appliedDiscount.percentage}% OFF)`;
-      } else {
-        formatted += ` - $${item.unitPrice.toLocaleString('es-AR')} c/u`;
-      }
+    // ✅ Siempre mostrar precios (ticket unificado)
+    if (item.appliedDiscount) {
+      formatted += ` - $${item.unitPrice.toLocaleString('es-AR')} -> $${item.finalUnitPrice.toLocaleString('es-AR')} (${item.appliedDiscount.percentage}% OFF)`;
+    } else {
+      formatted += ` - $${item.unitPrice.toLocaleString('es-AR')}`;
     }
 
     formatted += '\n';
@@ -119,11 +112,11 @@ export class TicketFormatter {
       item.comboProducts.forEach(product => {
         // Mostrar cantidad si es > 1 (ej: "2x Pollo Frito")
         const quantityPrefix = product.quantity > 1 ? `${product.quantity}x ` : '';
-        formatted += `   • ${quantityPrefix}${product.name}`;
+        formatted += `  ${quantityPrefix}${product.name}`;
 
         // Añadir opciones especiales solo a bebidas
         if (product.type === 'drink' && item.customizations.withIce !== undefined) {
-          formatted += item.customizations.withIce ? ' (con hielo)' : ' (sin hielo)';
+          formatted += item.customizations.withIce ? ' c/hielo' : ' s/hielo';
         }
 
         formatted += '\n';
@@ -132,28 +125,27 @@ export class TicketFormatter {
     // ⚠️ FALLBACK: Si no tiene comboProducts[] (orden antigua), usar customizations
     else if (item.combo) {
       if (item.customizations.product) {
-        formatted += `   • ${item.customizations.product.name}\n`;
+        formatted += `  ${item.customizations.product.name}\n`;
       }
       if (item.customizations.side) {
-        formatted += `   • ${item.customizations.side.name}\n`;
+        formatted += `  ${item.customizations.side.name}\n`;
       }
       if (item.customizations.drink) {
-        formatted += `   • ${item.customizations.drink.name}`;
-        formatted += item.customizations.withIce ? ' (con hielo)\n' : ' (sin hielo)\n';
+        formatted += `  ${item.customizations.drink.name}`;
+        formatted += item.customizations.withIce ? ' +hielo\n' : ' -hielo\n';
       }
     }
 
     // Opciones especiales
     if (item.customizations.isSpicy) {
-      formatted += '   *** CON PICANTE ***\n';
+      formatted += '  *** PICANTE ***\n';
     }
 
     // Para productos individuales (bebidas)
     if (!item.combo && item.customizations.withIce !== undefined) {
-      formatted += item.customizations.withIce ? '   (con hielo)\n' : '   (sin hielo)\n';
+      formatted += item.customizations.withIce ? '  +hielo\n' : '  -hielo\n';
     }
 
-    formatted += '\n';
     return formatted;
   }
 

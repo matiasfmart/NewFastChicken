@@ -4,6 +4,7 @@
  * 🟥 PRESENTATION LAYER - UI Component
  * - Muestra lista de pedidos recientes de la jornada
  * - Permite cancelar pedidos con razón
+ * - Permite reimprimir tickets de pedidos pasados
  * - Usa el OrderContext para la lógica de negocio
  */
 
@@ -37,7 +38,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Clock, Package, DollarSign } from 'lucide-react';
+import { Clock, Package, DollarSign, Printer } from 'lucide-react';
+import { browserPrinter } from '@/infrastructure/printers';
+import { TicketFormatter } from '@/domain/services/TicketFormatter';
 import type { Order } from '@/lib/types';
 
 interface OrderSearchDialogProps {
@@ -59,6 +62,7 @@ export function OrderSearchDialog({
   const [cancellationReason, setCancellationReason] = useState('');
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [printingOrderId, setPrintingOrderId] = useState<string | null>(null);
 
   // Cargar pedidos cuando se abre el diálogo
   useEffect(() => {
@@ -101,6 +105,33 @@ export function OrderSearchDialog({
       alert(error instanceof Error ? error.message : 'Error al cancelar pedido');
     } finally {
       setIsCancelling(false);
+    }
+  };
+
+  /**
+   * Reimprimir ticket de una orden pasada
+   * 🟥 PRESENTATION LAYER - Usa Domain Service y Infrastructure
+   * 
+   * ⚠️ Imprime 1 sola copia (reimpresión excepcional, no flujo inicial)
+   */
+  const handlePrintTicket = async (order: Order) => {
+    if (!browserPrinter.isAvailable()) {
+      alert('La impresión no está disponible en este navegador');
+      return;
+    }
+
+    setPrintingOrderId(order.id.toString());
+    try {
+      // ✅ Usar Domain Service para formatear el ticket
+      const ticketContent = TicketFormatter.formatOrderTicket(order);
+      
+      // ✅ Imprimir 1 copia (reimpresión excepcional)
+      await browserPrinter.print(ticketContent);
+    } catch (error) {
+      console.error('Error printing ticket:', error);
+      alert('Error al imprimir. Por favor, intente nuevamente.');
+    } finally {
+      setPrintingOrderId(null);
     }
   };
 
@@ -159,8 +190,8 @@ export function OrderSearchDialog({
               <p>No hay pedidos en esta jornada</p>
             </div>
           ) : (
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-3">
+            <ScrollArea className="h-[calc(85vh-180px)] pr-4">
+              <div className="space-y-3 pb-4">
                 {orders.map((order) => (
                   <Card
                     key={order.id}
@@ -174,7 +205,7 @@ export function OrderSearchDialog({
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm font-medium">
-                              #{order.id.toString().slice(-8).toUpperCase()}
+                              #{TicketFormatter.formatOrderNumber(order.orderNumber)}
                             </span>
                             {getStatusBadge(order.status)}
                           </div>
@@ -221,31 +252,43 @@ export function OrderSearchDialog({
                           )}
                         </div>
 
-                        {/* Total y acción */}
+                        {/* Total y acciones */}
                         <div className="flex flex-col items-end gap-3">
-                          <div className="text-right">
-                            <div className="flex items-center gap-1 text-muted-foreground text-xs mb-1">
-                              <DollarSign className="h-3 w-3" />
-                              <span>Total</span>
-                            </div>
-                            <div className="text-lg font-bold">
-                              {formatPrice(order.total)}
-                            </div>
+                          {/* Total - una sola línea */}
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">Total:</span>
+                            <span className="text-lg font-bold">{formatPrice(order.total)}</span>
                           </div>
 
-                          {order.status === 'completed' ? (
+                          {/* Botones de acción - horizontales */}
+                          <div className="flex gap-2">
+                            {/* Botón de imprimir - disponible para todas las órdenes */}
                             <Button
-                              variant="destructive"
+                              variant="outline"
                               size="sm"
-                              onClick={() => handleCancelClick(order)}
+                              onClick={() => handlePrintTicket(order)}
+                              disabled={printingOrderId === order.id.toString()}
                             >
-                              Cancelar
+                              <Printer className="h-4 w-4 mr-2" />
+                              {printingOrderId === order.id.toString() ? 'Imprimiendo...' : 'Imprimir'}
                             </Button>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              Cancelado
-                            </Badge>
-                          )}
+
+                            {/* Botón de cancelar - solo para órdenes completadas */}
+                            {order.status === 'completed' ? (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleCancelClick(order)}
+                              >
+                                Cancelar
+                              </Button>
+                            ) : (
+                              <Badge variant="outline" className="text-xs px-3 py-1">
+                                Cancelado
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -271,7 +314,7 @@ export function OrderSearchDialog({
           {selectedOrder && (
             <div className="bg-muted p-3 rounded-lg text-sm space-y-1">
               <div className="font-medium">
-                Pedido #{selectedOrder.id.toString().slice(-8).toUpperCase()}
+                Pedido #{TicketFormatter.formatOrderNumber(selectedOrder.orderNumber)}
               </div>
               <div className="text-muted-foreground">
                 Total: {formatPrice(selectedOrder.total)}
