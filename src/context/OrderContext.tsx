@@ -323,11 +323,9 @@ export const OrderProvider: React.FC<{ children: React.ReactNode, initialCombos:
 
         clearOrder();
 
-        // ✅ Refrescar shift en segundo plano (sin bloquear el retorno)
-        // El shift ya se actualizó en MongoDBOrderRepository, solo sincronizamos UI
-        if (currentShift) {
-          refreshShift().catch(err => console.error('Error refreshing shift:', err));
-        }
+        // ✅ OPTIMIZACIÓN: El shift ya se actualiza en MongoDBOrderRepository.createWithStockUpdate()
+        // No necesitamos hacer otra query. El próximo refresh normal sincronizará la UI.
+        // Esta eliminación reduce 1 query innecesaria por pedido.
 
         return finalOrder;
 

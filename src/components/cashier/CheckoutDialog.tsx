@@ -122,7 +122,24 @@ const TicketLayout = memo(({ order, className }: { order: Order; className?: str
       </div>
       <Separator className="separator my-2 border-dashed border-black" />
       <div className="space-y-2">
-        {order.items.map(renderItem)}
+        {order.items.map((item, index) => {
+          const currentComboId = item.combo?.id || item.id;
+          const nextComboId = index < order.items.length - 1 
+            ? (order.items[index + 1].combo?.id || order.items[index + 1].id)
+            : null;
+          
+          const showSeparator = nextComboId && currentComboId !== nextComboId;
+          
+          return (
+            <div key={item.id}>
+              {renderItem(item)}
+              {/* Línea separadora entre combos diferentes */}
+              {showSeparator && (
+                <Separator className="my-2 border-dashed border-gray-300" />
+              )}
+            </div>
+          );
+        })}
       </div>
       <Separator className="separator my-1 border-dashed border-black" />
       <div className="space-y-0.5 text-xs">
