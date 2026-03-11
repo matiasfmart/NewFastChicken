@@ -25,6 +25,12 @@ export class BrowserPrinter implements IPrinter {
       '<span class="brand-text">$1</span>'
     );
 
+    // Reemplazar marcador {{COMBO:texto}} para títulos de combos destacados
+    processedContent = processedContent.replace(
+      /\{\{COMBO:(.*?)\}\}/g,
+      '<span class="combo-title">$1</span>'
+    );
+
     const html = `
       <!DOCTYPE html>
       <html>
@@ -44,10 +50,10 @@ export class BrowserPrinter implements IPrinter {
             }
 
             body {
-              font-family: 'Courier New', monospace;
+              font-family: 'Arial', 'Helvetica Neue', sans-serif;
               font-size: 14px;
-              font-weight: 600;
-              line-height: 1.5;
+              font-weight: 500;
+              line-height: 1.6;
               width: 80mm;
               padding: 5mm;
               color: #000;
@@ -55,9 +61,9 @@ export class BrowserPrinter implements IPrinter {
             }
 
             pre {
-              font-family: 'Courier New', monospace;
+              font-family: 'Arial', 'Helvetica Neue', sans-serif;
               font-size: 14px;
-              font-weight: 600;
+              font-weight: 500;
               white-space: pre-wrap;
               word-wrap: break-word;
               margin: 0;
@@ -65,11 +71,21 @@ export class BrowserPrinter implements IPrinter {
 
             /* Estilo especial para el nombre de la marca */
             .brand-text {
-              font-size: 20px;
-              font-weight: 900;
-              letter-spacing: 2px;
+              font-size: 22px;
+              font-weight: 800;
+              letter-spacing: 1px;
               text-transform: uppercase;
               display: inline-block;
+            }
+
+            /* Estilo para títulos de combos - destacados y legibles */
+            .combo-title {
+              font-size: 16px;
+              font-weight: 700;
+              display: inline;
+              background-color: #f0f0f0;
+              padding: 1px 4px;
+              border-radius: 2px;
             }
 
             @media print {
