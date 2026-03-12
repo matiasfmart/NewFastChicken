@@ -253,9 +253,26 @@ export class TicketFormatter {
     // Información de la jornada
     ticket += `Cajero: ${shift.employeeName}\n`;
     ticket += `Inicio: ${this.formatDateTime(shift.startedAt)}\n`;
-    if (shift.endedAt) {
-      ticket += `Cierre: ${this.formatDateTime(shift.endedAt)}\n`;
-    }
+    // Mostrar hora de cierre (real si está cerrada, o actual si está abierta)
+    const endTime = shift.endedAt || new Date();
+    const endLabel = shift.endedAt ? 'Cierre' : 'Fin';
+    ticket += `${endLabel}:  ${this.formatDateTime(endTime)}\n`;
+    
+    // Calcular y mostrar duración de la jornada
+    const startDate = shift.startedAt instanceof Date 
+      ? shift.startedAt 
+      : typeof shift.startedAt === 'object' && 'seconds' in shift.startedAt
+      ? new Date((shift.startedAt as any).seconds * 1000)
+      : new Date(shift.startedAt);
+    const endDate = endTime instanceof Date
+      ? endTime
+      : typeof endTime === 'object' && 'seconds' in endTime
+      ? new Date((endTime as any).seconds * 1000)
+      : new Date(endTime);
+    const duration = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60)); // minutos
+    const hours = Math.floor(duration / 60);
+    const minutes = duration % 60;
+    ticket += `Duracion: ${hours}h ${minutes}m\n`;
     ticket += '\n';
     ticket += '--------------------------------\n';
     ticket += 'RESUMEN DE VENTAS\n';

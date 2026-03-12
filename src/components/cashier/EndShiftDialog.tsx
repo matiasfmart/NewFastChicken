@@ -11,7 +11,9 @@ import { useState, useCallback, useEffect } from "react";
 import { Timestamp } from "firebase/firestore";
 import { browserPrinter } from "@/infrastructure/printers";
 import { TicketFormatter } from "@/domain/services/TicketFormatter";
+import { ShiftAPI } from "@/api";
 import { Printer } from "lucide-react";
+import type { Shift } from "@/lib/types";
 
 interface EndShiftDialogProps {
   isOpen: boolean;
@@ -20,22 +22,45 @@ interface EndShiftDialogProps {
 
 export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
   const { startNewShift, loadCurrentShiftOrders } = useOrder();
-  const { currentShift, endShift, refreshShift } = useShift();
+  const { currentShift, endShift } = useShift();
   const [actualCash, setActualCash] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [displayShift, setDisplayShift] = useState<Shift | null>(null);
+  const [isLoadingShift, setIsLoadingShift] = useState(false);
 
-  // ✅ Refrescar shift cuando se abre el diálogo para obtener totales actualizados
+  /**
+   * ✅ Cargar shift fresco al abrir el diálogo para mostrar datos actualizados en la UI
+   */
   useEffect(() => {
-    if (isOpen) {
-      refreshShift();
-    }
-  }, [isOpen, refreshShift]);
+    const loadFreshShift = async () => {
+      if (isOpen) {
+        setIsLoadingShift(true);
+        try {
+          const freshShift = await ShiftAPI.getActiveShift();
+          setDisplayShift(freshShift);
+        } catch (error) {
+          console.error('Error loading shift:', error);
+          // Fallback al currentShift del contexto
+          setDisplayShift(currentShift);
+        } finally {
+          setIsLoadingShift(false);
+        }
+      }
+    };
+    loadFreshShift();
+  }, [isOpen, currentShift]);
 
-  // ✅ IMPORTANTE: useCallback debe estar ANTES de cualquier early return
+  /**
+   * ✅ OPTIMIZACIÓN: Consulta DB directamente para datos críticos del ticket
+   * 
+   * Rationale:
+   * - Cierre de jornada ocurre 1 vez cada 8h → 1 query es trivial
+   * - Garantiza datos frescos sin depender de sincronización de cache
+   * - Elimina bug de closure completamente
+   * - Respeta Clean Architecture: Presentation → API → Repository
+   */
   const handlePrintSummary = useCallback(async () => {
-    if (!currentShift) return;
-
     // ✅ Validar que se haya ingresado el efectivo contado
     const cashAmount = parseFloat(actualCash) || 0;
     if (!actualCash || cashAmount <= 0) {
@@ -50,14 +75,18 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
 
     setIsPrinting(true);
     try {
-      // ✅ Refrescar shift antes de imprimir para garantizar datos actualizados
-      await refreshShift();
+      // ✅ Consultar DB directamente para garantizar datos actualizados
+      const freshShift = await ShiftAPI.getActiveShift();
+      if (!freshShift) {
+        alert('No se pudo obtener la información de la jornada');
+        return;
+      }
       
       // Cargar órdenes de la jornada para incluir detalle de canceladas
       const orders = await loadCurrentShiftOrders();
 
-      // ✅ Formatear ticket pasando el efectivo contado como parámetro
-      const ticketContent = TicketFormatter.formatShiftSummaryTicket(currentShift, orders, cashAmount);
+      // Formatear ticket con datos frescos de la DB
+      const ticketContent = TicketFormatter.formatShiftSummaryTicket(freshShift, orders, cashAmount);
 
       // Imprimir
       await browserPrinter.print(ticketContent);
@@ -67,12 +96,15 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
     } finally {
       setIsPrinting(false);
     }
-  }, [currentShift, loadCurrentShiftOrders, actualCash, refreshShift]);
+  }, [loadCurrentShiftOrders, actualCash]);
 
   // ✅ Early return DESPUÉS de todos los hooks
   if (!currentShift) return null;
 
-  const expectedCash = currentShift.initialCash + currentShift.totalRevenue;
+  // Usar displayShift para mostrar datos en el UI, con fallback a currentShift
+  const shiftToDisplay = displayShift || currentShift;
+  
+  const expectedCash = shiftToDisplay.initialCash + shiftToDisplay.totalRevenue;
   const cashAmount = parseFloat(actualCash) || 0;
   const difference = cashAmount - expectedCash;
 
@@ -107,21 +139,63 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Cajero:</span>
-              <span className="font-medium">{currentShift.employeeName}</span>
+              <span className="font-medium">{shiftToDisplay.employeeName}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Hora de inicio:</span>
               <span className="font-medium">
                 {(() => {
-                  const date = currentShift.startedAt instanceof Date
-                    ? currentShift.startedAt
-                    : currentShift.startedAt instanceof Timestamp
-                    ? currentShift.startedAt.toDate()
-                    : new Date(currentShift.startedAt);
+                  const date = shiftToDisplay.startedAt instanceof Date
+                    ? shiftToDisplay.startedAt
+                    : shiftToDisplay.startedAt instanceof Timestamp
+                    ? shiftToDisplay.startedAt.toDate()
+                    : new Date(shiftToDisplay.startedAt);
                   return date.toLocaleTimeString('es-AR', {
                     hour: '2-digit',
                     minute: '2-digit'
                   });
+                })()}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Hora de fin:</span>
+              <span className="font-medium">
+                {(() => {
+                  // Si la jornada está cerrada usar endedAt, sino usar hora actual
+                  const date = shiftToDisplay.endedAt
+                    ? (shiftToDisplay.endedAt instanceof Date
+                        ? shiftToDisplay.endedAt
+                        : shiftToDisplay.endedAt instanceof Timestamp
+                        ? shiftToDisplay.endedAt.toDate()
+                        : new Date(shiftToDisplay.endedAt))
+                    : new Date();
+                  return date.toLocaleTimeString('es-AR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  });
+                })()}
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Duración:</span>
+              <span className="font-medium">
+                {(() => {
+                  const startDate = shiftToDisplay.startedAt instanceof Date
+                    ? shiftToDisplay.startedAt
+                    : shiftToDisplay.startedAt instanceof Timestamp
+                    ? shiftToDisplay.startedAt.toDate()
+                    : new Date(shiftToDisplay.startedAt);
+                  const endDate = shiftToDisplay.endedAt
+                    ? (shiftToDisplay.endedAt instanceof Date
+                        ? shiftToDisplay.endedAt
+                        : shiftToDisplay.endedAt instanceof Timestamp
+                        ? shiftToDisplay.endedAt.toDate()
+                        : new Date(shiftToDisplay.endedAt))
+                    : new Date();
+                  const diffMs = endDate.getTime() - startDate.getTime();
+                  const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                  const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                  return `${hours}h ${minutes}m`;
                 })()}
               </span>
             </div>
@@ -133,11 +207,15 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total de órdenes:</span>
-              <span className="font-bold">{currentShift.totalOrders}</span>
+              <span className="font-bold">
+                {isLoadingShift ? '...' : shiftToDisplay.totalOrders}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total recaudado:</span>
-              <span className="font-bold">${currentShift.totalRevenue.toLocaleString('es-AR')}</span>
+              <span className="font-bold">
+                {isLoadingShift ? '...' : `$${shiftToDisplay.totalRevenue.toLocaleString('es-AR')}`}
+              </span>
             </div>
           </div>
 
@@ -149,7 +227,7 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Fondo inicial:</span>
-                <span>${currentShift.initialCash.toLocaleString('es-AR')}</span>
+                <span>${shiftToDisplay.initialCash.toLocaleString('es-AR')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Efectivo esperado:</span>
