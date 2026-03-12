@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOrder } from "@/context/OrderContext";
 import { useShift } from "@/context/ShiftContext";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Timestamp } from "firebase/firestore";
 import { browserPrinter } from "@/infrastructure/printers";
 import { TicketFormatter } from "@/domain/services/TicketFormatter";
@@ -20,10 +20,17 @@ interface EndShiftDialogProps {
 
 export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
   const { startNewShift, loadCurrentShiftOrders } = useOrder();
-  const { currentShift, endShift } = useShift();
+  const { currentShift, endShift, refreshShift } = useShift();
   const [actualCash, setActualCash] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+
+  // ✅ Refrescar shift cuando se abre el diálogo para obtener totales actualizados
+  useEffect(() => {
+    if (isOpen) {
+      refreshShift();
+    }
+  }, [isOpen, refreshShift]);
 
   // ✅ IMPORTANTE: useCallback debe estar ANTES de cualquier early return
   const handlePrintSummary = useCallback(async () => {
@@ -43,6 +50,9 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
 
     setIsPrinting(true);
     try {
+      // ✅ Refrescar shift antes de imprimir para garantizar datos actualizados
+      await refreshShift();
+      
       // Cargar órdenes de la jornada para incluir detalle de canceladas
       const orders = await loadCurrentShiftOrders();
 
@@ -57,7 +67,7 @@ export function EndShiftDialog({ isOpen, onClose }: EndShiftDialogProps) {
     } finally {
       setIsPrinting(false);
     }
-  }, [currentShift, loadCurrentShiftOrders, actualCash]);
+  }, [currentShift, loadCurrentShiftOrders, actualCash, refreshShift]);
 
   // ✅ Early return DESPUÉS de todos los hooks
   if (!currentShift) return null;
